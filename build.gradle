@@ -1,0 +1,50 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+        resources {
+            srcDirs = ['src/main/resources']
+        }
+    }
+
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+        resources {
+            srcDirs = ['src/test/resources']
+        }
+    }
+}
+
+task runClient(type: JavaExec) {
+    group = 'SocialNetwork'
+    description = 'Runs Client'
+    main = 'Client'
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in;
+}
+
+task runServer(type: JavaExec) {
+    group = 'SocialNetwork'
+    description = 'Runs Server'
+    main = 'Server'
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in;
+}
+
+task cleanEmptyDirs() {
+    file('build/test-results/test/binary').deleteDir()
+}
+
+build.dependsOn(cleanEmptyDirs)
