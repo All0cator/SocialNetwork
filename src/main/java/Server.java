@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 import POD.Credentials;
 import POD.HostData;
@@ -21,10 +22,32 @@ public class Server implements Runnable {
 
     private ServerSocket serverSocket;
 
-    private HashMap<String, String> userNameToPassword;
-    private HashMap<String, Integer> userNameToID;
+    private ConcurrentHashMap<Integer, Directory> IDtoDirectory; // cache of user directories
+
+    private ConcurrentHashMap<String, String> userNameToPassword;
+    private ConcurrentHashMap<String, Integer> userNameToID;
+    private ConcurrentHashMap<Integer, String> IDToUserName;
+
     private int userCount;
     private SocialGraph socialGraph;
+
+    // avoid stale reads with synchronized
+    public synchronized Directory GetDirectory(int userID) {
+        Directory result = this.IDtoDirectory.get(userID);
+
+        if(result == null) {
+
+            if(this.socialGraph.GetUserNode(userID) == null) return null;
+
+            String clientDirectoryPath = Server.serverDirectoryPath + "ClientProfiles/Client" + Integer.toString(userID) + "/";
+
+            result = new Directory(clientDirectoryPath, userID);
+
+            this.IDtoDirectory.put(userID, result);
+        }
+
+        return result;
+    }
 
     public synchronized int GetUserIDFromCredentials(Credentials credentials) {
         String password = this.userNameToPassword.get(credentials.userName);
@@ -37,6 +60,14 @@ public class Server implements Runnable {
         return -1;
     }
 
+    public SocialGraph GetSocialGraph() {
+        return this.socialGraph;
+    }
+
+    public String GetUserName(int userID) {
+        return this.IDToUserName.get(userID);
+    }
+
     public synchronized int RegisterUser(Credentials credentials) {
         String password = this.userNameToPassword.get(credentials.userName);
         int ID = -1;
@@ -45,6 +76,8 @@ public class Server implements Runnable {
             userNameToPassword.put(credentials.userName, credentials.password);
             ID = this.userCount++;
             userNameToID.put(credentials.userName, ID);
+            IDToUserName.put(ID, credentials.userName);
+            this.IDtoDirectory.put(ID, new Directory(Server.serverDirectoryPath + "ClientProfiles/Client" + Integer.toString(ID) + "/", ID));
         }
 
         return ID;
@@ -72,8 +105,10 @@ public class Server implements Runnable {
         try {
             reader = new BufferedReader(new FileReader(Server.serverDirectoryPath + "Credentials.txt"));
 
-            this.userNameToPassword = new HashMap<String, String>();
-            this.userNameToID = new HashMap<String, Integer>();
+            this.userNameToPassword = new ConcurrentHashMap<String, String>();
+            this.userNameToID = new ConcurrentHashMap<String, Integer>();
+            this.IDToUserName = new ConcurrentHashMap<Integer, String>();
+            this.IDtoDirectory = new ConcurrentHashMap<Integer, Directory>();
 
             while((line = reader.readLine()) != null) {
                 String credentials[] = line.trim().split(" ");
@@ -81,6 +116,7 @@ public class Server implements Runnable {
                 if(credentials.length != 3) continue;
                 
                 this.userNameToID.put(credentials[1], Integer.parseInt(credentials[0]));
+                this.IDToUserName.put(Integer.parseInt(credentials[0]), credentials[1]);
                 this.userNameToPassword.put(credentials[1], credentials[2]);
                 userCount++;
             }

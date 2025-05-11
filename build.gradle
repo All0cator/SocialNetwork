@@ -43,8 +43,17 @@ task runServer(type: JavaExec) {
     standardInput = System.in;
 }
 
+task runDirectoryTest(type: JavaExec) {
+    group = 'SocialNetwork'
+    description = 'Runs Directory Test'
+    main = 'Directory'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
 task cleanEmptyDirs() {
     file('build/test-results/test/binary').deleteDir()
+    file('classes/java/main/Messages').deleteDir()
+    file('classes/java/main/POD').deleteDir()
 }
 
 build.dependsOn(cleanEmptyDirs)

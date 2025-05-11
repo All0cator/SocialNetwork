@@ -1,30 +1,63 @@
 import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SocialGraphNode {
 
     private Integer ID;
     
     // HashSet handles duplicate values
-    private HashSet<SocialGraphNode> IDTofollowerNode;
-    private HashSet<SocialGraphNode> IDTofollowingNode; 
+    private Set<SocialGraphNode> followerNodes;
+    private Set<SocialGraphNode> followingNodes; 
 
     public SocialGraphNode(int ID) {
         this.ID = ID;
 
-        this.IDTofollowerNode = new HashSet<SocialGraphNode>();
-        this.IDTofollowingNode = new HashSet<SocialGraphNode>();
+        this.followerNodes = ConcurrentHashMap.newKeySet();
+        this.followingNodes = ConcurrentHashMap.newKeySet();
     }
 
     public int GetID() {
         return this.ID;
     }
 
+    // you cannot add while also Getting IDs so this must be synchronized
     public synchronized void AddFollower(SocialGraphNode followerNode) {
-        this.IDTofollowerNode.add(followerNode);
+        this.followerNodes.add(followerNode);
     }
 
     public synchronized void AddFollowing(SocialGraphNode followingNode) {
-        this.IDTofollowingNode.add(followingNode);
+        this.followingNodes.add(followingNode);
+    }
+
+    public synchronized void RemoveFollower(SocialGraphNode followerNode) {
+        this.followerNodes.remove(followerNode);
+    }
+
+    public synchronized  void RemoveFollowing(SocialGraphNode followingNode) {
+        this.followingNodes.remove(followingNode);
+    }
+
+    // This function returns a non thread safe implementation of hashmap data structure
+    public synchronized Set<Integer> GetFollowerIDs() {
+        Set<Integer> result = new HashSet<Integer>();
+
+        for(SocialGraphNode node : this.followerNodes) {
+            result.add(node.GetID());
+        }
+
+        return result;
+    }
+
+    // This function returns a non thread safe implementation of hashmap data structure
+    public synchronized Set<Integer> GetFollowingIDs() {
+        Set<Integer> result = new HashSet<Integer>();
+
+        for(SocialGraphNode node : this.followingNodes) {
+            result.add(node.GetID());
+        }
+
+        return result;
     }
 
     @Override
@@ -45,13 +78,13 @@ public class SocialGraphNode {
 
         result += ",\nFollowers: ";
 
-        for(SocialGraphNode followerNode : this.IDTofollowerNode) {
+        for(SocialGraphNode followerNode : this.followerNodes) {
             result += ", " + Integer.toString(followerNode.GetID());
         }
 
         result += ",\nFollowing: ";
 
-        for(SocialGraphNode followingNode : this.IDTofollowingNode) {
+        for(SocialGraphNode followingNode : this.followingNodes) {
             result += ", " + Integer.toString(followingNode.GetID());
         }
 

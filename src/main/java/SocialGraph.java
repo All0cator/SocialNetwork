@@ -1,15 +1,15 @@
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SocialGraph {
     
     // HashMap provides fast query of a node with a specific userID
-    private HashMap<Integer, SocialGraphNode> userIDToNode;
+    private ConcurrentHashMap<Integer, SocialGraphNode> userIDToNode;
     
     public SocialGraph() {
-        this.userIDToNode = new HashMap<Integer, SocialGraphNode>();
+        this.userIDToNode = new ConcurrentHashMap<Integer, SocialGraphNode>();
     }
 
-    public synchronized SocialGraphNode GetUserNode(int userID) {
+    public SocialGraphNode GetUserNode(int userID) {
         return userIDToNode.get(userID);
     }
 
