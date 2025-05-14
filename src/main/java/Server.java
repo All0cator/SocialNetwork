@@ -130,9 +130,9 @@ public class Server implements Runnable {
             }
         }
 
-        //for(String name : this.userNameToID.keySet()) {
-        //    System.out.println(new Credentials(name, this.userNameToPassword.get(name)));
-        //}
+        // for(String name : this.userNameToID.keySet()) {
+        //     System.out.println(new Credentials(name, this.userNameToPassword.get(name)));
+        // }
 
         // Load Social Graph
         reader = null;
@@ -171,12 +171,12 @@ public class Server implements Runnable {
             }
         }
 
-        //for(int i = 0; i < userCount; ++i) {
-        //    SocialGraphNode userNode = this.socialGraph.GetUserNode(i);
-        //    if(userNode != null) {
-        //        System.out.println(userNode);
-        //    }
-        //}
+        // for(int i = 0; i < userCount; ++i) {
+        //     SocialGraphNode userNode = this.socialGraph.GetUserNode(i);
+        //     if(userNode != null) {
+        //         System.out.println(userNode);
+        //     }
+        // }
     }
 
     @Override

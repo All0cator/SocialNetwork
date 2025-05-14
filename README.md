@@ -1,27 +1,27 @@
 # SocialNetwork
-Part of computer networks project assignment
+A Java-based social network application with client-server architecture, file sharing capabilities, and user management features.
 
-
+### Installation
+1. Clone the repository:
 ```
-./gradlew build --quiet
-```
-
-**Args:**   
-
-HostIP for Server,  
-Port Number of Server
-
-```
-./gradlew runServer --args="localhost 8080"
+git clone https://github.com/All0cator/SocialNetwork.git
+cd SocialNetwork
 ```
 
-**Args:**   
-
-HostIP for Server,
-Port Number of Server,
-HostIP for Client,  
-Port Number for Client  
-
+2. Build the project:
 ```
-./gradlew runClient --args="localhost 8080 localhost 8081"
+gradle build
 ```
+
+### Running the Application
+#### Starting the Server
+```
+gradle runServer
+```
+
+#### Starting the Client
+```
+gradle runClient
+```
+
+Note: The Server and Client args are hardwritten inside the build.gradle file.

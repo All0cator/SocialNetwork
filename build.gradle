@@ -35,6 +35,7 @@ task runClient(type: JavaExec) {
     main = 'Client'
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in;
+    args = ['127.0.0.1', '8000', '127.0.0.1', '8001']
 }
 
 task runServer(type: JavaExec) {
@@ -43,6 +44,7 @@ task runServer(type: JavaExec) {
     main = 'Server'
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in;
+    args = ['127.0.0.1', '8000']
 }
 
 task runDirectoryTest(type: JavaExec) {
