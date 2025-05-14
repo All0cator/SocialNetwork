@@ -127,17 +127,12 @@ public class ServerActions implements Runnable {
                     {
                         PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
 
-                        // Get target node
-                        SocialGraphNode targetNode = this.server.GetSocialGraph().GetUserNode(pRequest.clientIDDestination);
-
                         // Follow request goes to the targetNode's directory Others_31clientID
 
-                        if(targetNode != null) {
-                            Directory targetDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
-                            ArrayList<String> appendLines = new ArrayList<String>();
-                            appendLines.add(String.format("%d follow request", pRequest.clientIDSource));
-                            targetDirectory.GetFile(targetDirectory.GetLocalNotificationsName()).AppendFile(appendLines);
-                        }
+                        Directory targetDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
+                        ArrayList<String> appendLines = new ArrayList<String>();
+                        appendLines.add(String.format("%d follow request", pRequest.clientIDSource));
+                        targetDirectory.GetFile(targetDirectory.GetLocalNotificationsName()).AppendFile(appendLines);
                     }
                     break;
                     case MessageType.UNFOLLOW:
@@ -230,7 +225,22 @@ public class ServerActions implements Runnable {
 
                             for(Integer ID : followingsIDs) {
                                 Directory followingDirectory = this.server.GetDirectory(ID);
-                                pNotifications.text += followingDirectory.GetNotifications();
+
+                                String notifications = followingDirectory.GetNotifications();
+
+                                if(notifications.length() == 0) continue;
+
+                                pNotifications.text += followingDirectory.GetNotifications() + "\n";
+                            }
+
+                            Directory userDirectory = this.server.GetDirectory(userID);
+                            String[] userNotifications = userDirectory.GetNotifications().split("\n");
+
+                            if(userNotifications != null) {
+                                for(int i = 0; i < userNotifications.length; ++i) {
+                                    if(userNotifications[i].contains("follow request"))
+                                    pNotifications.text += userNotifications[i];
+                                }
                             }
                         }
 
@@ -321,25 +331,30 @@ public class ServerActions implements Runnable {
                         message1.payload = pDownloadResult;
                         pDownloadResult.name = photoName;
                         pDownloadResult.clientID = directoryClientID;
-
+                        System.out.println("Sending Image Parameters");
                         this.oStream.writeObject(message1);
                         this.oStream.flush();
 
                         // 3-way handshake
+                        System.out.println("Syn");
                         Message syn = (Message)this.iStream.readObject();
                         Message synAck = new Message();
                         synAck.type = MessageType.SYN_ACK;
 
+                        System.out.println("SynAck");
                         this.oStream.writeObject(synAck);
                         this.oStream.flush();
 
+                        System.out.println("Ack");
                         Message ack = (Message)this.iStream.readObject();
                         PayloadDownload pDownload3 = (PayloadDownload)ack.payload;
 
+                        System.out.println("Timeout: " + Integer.toString(pDownload3.timeout));
                         this.connectionSocket.setSoTimeout(pDownload3.timeout);
 
                         Message timeoutMessage = new Message();
                         
+                        System.out.println("Sending Image Parameters");
                         this.oStream.writeObject(timeoutMessage);
                         this.oStream.flush();
  
@@ -348,6 +363,7 @@ public class ServerActions implements Runnable {
 
                         // retransmission
                         try {
+                            System.out.println("Waiting for ACK");
                             this.iStream.readObject();
                         } catch (SocketTimeoutException e) {
                             // retransmission
@@ -356,6 +372,7 @@ public class ServerActions implements Runnable {
 
                             Message timeoutMessage2 = new Message();
                             timeoutMessage2.payload = (int)serializedBytes.length;
+                            System.out.println("Retransmit Image Parameters");
                             this.oStream.writeObject(timeoutMessage2);
                             this.oStream.flush();
 
@@ -364,6 +381,7 @@ public class ServerActions implements Runnable {
                         }
 
 
+                        System.out.println("ACK Image Parameters");
                         // wait for ACK to start the Image transmission
                         Message response3 = (Message)this.iStream.readObject();
 
@@ -372,15 +390,22 @@ public class ServerActions implements Runnable {
 
                         while(i < 10) {
 
+                            System.out.println("i: " + Integer.toString(i));
+                            CommandAPDU commandAPDU = null;
+
                             try {
-                                CommandAPDU commandAPDU = (CommandAPDU)this.iStream.readObject();
-                                this.connectionSocket.setSoTimeout(0);
+                                System.out.println("Reading CommandAPDU...");
+                                commandAPDU = (CommandAPDU)this.iStream.readObject();
                             } catch(SocketTimeoutException e) {
+                                this.connectionSocket.setSoTimeout(0);
                                 this.iStream.readObject();
                                 // ignore CommandAPDU receive the second one
                             }
-
-                            CommandAPDU commandAPDU = (CommandAPDU)this.iStream.readObject();
+                            
+                            if(i == 3) {
+                                System.out.println("Reading CommandAPDU...");
+                                commandAPDU = (CommandAPDU)this.iStream.readObject();
+                            }
 
                             if(commandAPDU.nc > 0) {
                                 // we have received timeout
@@ -396,15 +421,18 @@ public class ServerActions implements Runnable {
                             System.arraycopy(serializedBytes, serializedBytesOffset, responseAPDU.responseData, 0, commandAPDU.ne);
                             serializedBytesOffset += commandAPDU.ne;
 
+                            System.out.println("Sending ResponseAPDU...");
                             this.oStream.writeObject(responseAPDU);
                             this.oStream.flush();
 
                             i++;
                         }
 
+                        System.out.println("Finished!");
+
                         PayloadText pText = new PayloadText();
                         pText.text = null;
-                        String[] tokens = photoName.split(".");
+                        String[] tokens = photoName.split("\\.");
                         String accompanyingTextFileName = tokens[0] + ".txt";
                         _File accompanyingTextFile = this.server.GetDirectory(directoryClientID).GetFile(accompanyingTextFileName);
                         if(accompanyingTextFile != null) {
@@ -456,6 +484,7 @@ public class ServerActions implements Runnable {
                 }
             }
         } catch(IOException e) {
+            System.out.println(e.getMessage());
             throw new RuntimeException();
         } catch (ClassNotFoundException e) {
             throw new RuntimeException();

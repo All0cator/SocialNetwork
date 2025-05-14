@@ -123,7 +123,7 @@ public class Directory {
         return "Others_31client" + Integer.toString(this.clientID) + ".txt";
     }
 
-    public _File GetFile(String localFileName) {
+    public _File GetFile(String localFileName) {        
         _File file = localFilePathToFile.get(localFileName);
 
         return file;

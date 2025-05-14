@@ -315,7 +315,7 @@ public class Client implements Runnable {
                             pRequest2.clientIDSource = this.ID;
                             pRequest2.clientIDDestination = followerID;
 
-                            this.oStream.writeObject(pRequest2);
+                            this.oStream.writeObject(followbackMessage);
                             this.oStream.flush();
                         }
                     }
@@ -445,13 +445,13 @@ public class Client implements Runnable {
                     {
                         // Upload TestImage on local repository
                         this.clientDirectory.SetFile("TestImage.png");
-                        this.clientDirectory.SetFile("TestText.txt");
+                        this.clientDirectory.SetFile("TestImage.txt");
 
                         _File imageFileTest = this.testDirectory.GetFile("TestImage.png");
-                        _File textFileTest = this.testDirectory.GetFile("TestText.txt");
+                        _File textFileTest = this.testDirectory.GetFile("TestImage.txt");
 
                         _File imageFile = this.clientDirectory.GetFile("TestImage.png");
-                        _File textFile = this.clientDirectory.GetFile("TestText.txt");
+                        _File textFile = this.clientDirectory.GetFile("TestImage.txt");
                         
                         imageFile.WriteFile(imageFileTest.ReadFile());
                         textFile.WriteFile(textFileTest.ReadFile());
@@ -459,7 +459,7 @@ public class Client implements Runnable {
                         ArrayList<String> appendList = new ArrayList<String>();
                         appendList.add(String.format("%d posted %s", this.ID, "TestImage.png"));
 
-                        this.clientDirectory.GetFile(this.GetClientProfileFilePath()).AppendFile(appendList);
+                        this.clientDirectory.GetFile(this.clientDirectory.GetLocalProfileName()).AppendFile(appendList);
 
                         // Upload TestImage on remote repository
                         Message synchronizationMessage = new Message();
@@ -470,7 +470,7 @@ public class Client implements Runnable {
                         pUpload.clientID = this.ID;
                         pUpload.imageName = "TestImage.png";
                         pUpload.imageData = (byte[])imageFileTest.ReadFile();
-                        pUpload.textName = "TestText.txt";
+                        pUpload.textName = "TestImage.txt";
                         pUpload.acompanyingText = (String)textFileTest.ReadFile();
 
                         this.oStream.writeObject(synchronizationMessage);
@@ -488,10 +488,12 @@ public class Client implements Runnable {
                         System.out.print("Input Photo Name to download: ");
                         pDownload.name = this.sc.nextLine();
 
+                        System.out.println("Sending Download Request");
                         this.oStream.writeObject(downloadMessage);
                         this.oStream.flush();
 
                         // Image to download and client that has it
+                        System.out.println("Receiving Download Response");
                         Message imageSearchResult = (Message)this.iStream.readObject();
                         if(imageSearchResult.type == MessageType.ERROR) {
                             System.out.println("File not found!");
@@ -508,11 +510,12 @@ public class Client implements Runnable {
                         message1.type = MessageType.SYN;
                         message1.payload = null;
                         
-                        
+                        System.out.println("Syn");
                         long t1 = System.currentTimeMillis();
                         this.oStream.writeObject(message1);
                         this.oStream.flush();
                         
+                        System.out.println("SynAck");
                         Message response1 = (Message)this.iStream.readObject();
                         long t2 = System.currentTimeMillis();
                         int timeout = (int)(t2 - t1);
@@ -523,15 +526,18 @@ public class Client implements Runnable {
                         message2.payload = pDownload2;
                         pDownload2.clientID = clientID;
                         pDownload2.name = photoName;
-                        pDownload2.timeout = timeout;
+                        pDownload2.timeout = 5000;//timeout; // round trip time is not consistent
                         
+                        System.out.println("Ack");
                         this.oStream.writeObject(message2);
                         this.oStream.flush();
                         
-                        // Do not send 3rd message wait for timeout
+                        System.out.println("Receiving Image Parameters");
+                        // send 3rd message wait for timeout
                         Message response2 = (Message)this.iStream.readObject();
 
                         // Retransmission
+                        System.out.println("Retransmission Image Parameters");
                         Message response3 = (Message)this.iStream.readObject();
                         int imageBytes = (int)response3.payload;
                         
@@ -539,6 +545,7 @@ public class Client implements Runnable {
                         message3.type = MessageType.ACK;
                         message3.payload = null;
 
+                        System.out.println("ACK Image Parameters");
                         this.oStream.writeObject(message3);
                         this.oStream.flush();
 
@@ -549,6 +556,9 @@ public class Client implements Runnable {
                         int neFinalPacket = (int)(((float)imageBytes / 10.0f) + ((float)(_ceil((float)imageBytes / 10.0f)) - (float)imageBytes / 10.0f));
 
                         ArrayList<Byte> reconstructedImage = new ArrayList<Byte>();
+
+                        System.out.println(ne);
+                        System.out.println(neFinalPacket);
 
                         while(i < 10) {                            
                             // Send parameters
@@ -576,24 +586,27 @@ public class Client implements Runnable {
                             } else if(i == 3) {
                                 // 6th message of client to the server
                                 try {
-                                    Thread.sleep(1000);
-                                } catch (InterruptedException e) {
-
+                                    Thread.sleep(10000);
                                     CommandAPDU commandAPDU2 = new CommandAPDU();
                                     commandAPDU2.ne = (short)ne;
                                     commandAPDU2.nc = 0;
                                     commandAPDU2.commandData = null;
                                     
+                                    System.out.println("Sending CommandAPDU...");
                                     this.oStream.writeObject(commandAPDU2);
                                     this.oStream.flush();
                                     // send 2 packets handle double ACK in server side
+                                } catch (InterruptedException e) {
+
                                 }
                             }
 
+                            System.out.println("Sending CommandAPDU...");
                             t1 = System.currentTimeMillis();
                             this.oStream.writeObject(commandAPDU);
                             this.oStream.flush();
                             
+                            System.out.println("Reading ResponseAPDU...");
                             ResponseAPDU responseAPDU = (ResponseAPDU)this.iStream.readObject();
                             t2 = System.currentTimeMillis();
                             timeout = (int)(t2 - t1);
@@ -608,6 +621,8 @@ public class Client implements Runnable {
                             i++;
 
                         }
+
+                        System.out.println("Finished!");
 
                         PayloadText textFile = (PayloadText)this.iStream.readObject();
 
@@ -632,7 +647,9 @@ public class Client implements Runnable {
                         Byte[] imageData = reconstructedImage.toArray(new Byte[0]);
                         byte[] imageData2 = new byte[imageData.length];
                         // memcpy
-                        System.arraycopy(imageData, 0, imageData2, 0, imageData.length);
+                        for(int j = 0; j < imageData.length; ++j) {
+                            imageData2[j] = imageData[j];
+                        }
 
                         ByteArrayInputStream bao = new ByteArrayInputStream(imageData2);
                         BufferedImage bImage = ImageIO.read(bao);
@@ -713,6 +730,7 @@ public class Client implements Runnable {
                         // I dont care about type safety I know what Im doing v
                         ArrayList<String> unsynchronizedFilePaths = (ArrayList<String>)this.iStream.readObject();
 
+                        //System.out.println(unsynchronizedFilePaths.size());
                         for(String filePath : unsynchronizedFilePaths) {
                             Message getFileContentsMessage = new Message();
                             getFileContentsMessage.type = MessageType.GET_FILE_CONTENTS;
@@ -726,9 +744,9 @@ public class Client implements Runnable {
                             this.oStream.flush();
 
                             Object contents = this.iStream.readObject();
-                            if(filePath.contains(".txt")) {
-                                System.out.println((String)contents);
-                            }
+                            //if(filePath.contains(".txt")) {
+                            //    System.out.println((String)contents);
+                            //}
                             this.clientDirectory.SetFile(filePath);
                             this.clientDirectory.GetFile(filePath).WriteFile(contents);;
                         }

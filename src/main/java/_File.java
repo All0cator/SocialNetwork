@@ -101,6 +101,16 @@ public class _File {
                     result += line + "\n";
                 }
 
+                int idx = ((String)result).lastIndexOf("\n");
+
+                int endIndex = idx;
+
+                if(idx == -1) {
+                    endIndex = 0;
+                }
+
+                result = ((String)result).subSequence(0, endIndex);
+
             } catch(IOException e) {
                 throw new RuntimeException();
             } finally {
@@ -124,6 +134,8 @@ public class _File {
 
                 result = oStream.toByteArray();
             } catch (IOException e) {
+                System.out.println(new File(this.globalFilePath).getAbsolutePath());
+                System.out.println(e.getMessage());
                 throw new RuntimeException();
             }
             
@@ -182,14 +194,26 @@ public class _File {
 
         FileWriter fWriter = null;
 
+        
+        
         try {
-            fWriter = new FileWriter(this.globalFilePath, true);
             
-            for(String line : lines) {
-                fWriter.write(line + "\n");
+            String firstLine = "\n";
+            if(new File(this.globalFilePath).length() == 0) {
+                firstLine = "";
+            }
+
+            fWriter = new FileWriter(this.globalFilePath, true);
+
+            String newLine = firstLine;
+
+            for(int i = 0; i < lines.size(); ++i) {
+                fWriter.write(newLine + lines.get(i));
+                newLine = "\n";
                 this.isDirty = true;
             }
         } catch (IOException e) {
+            System.out.println(e.getMessage());
             throw new RuntimeException();
         } finally {
             if(fWriter != null) {
@@ -214,12 +238,25 @@ public class _File {
             fWriter = new FileWriter(this.globalFilePath);
             
             if(fileLines != null) {
-                for(int i = 0; i < fileLines.length; ++i) {
+                for(int i = 0; i < fileLines.length - 1; ++i) {
+                    
                     if(!lines.contains(fileLines[i])) {
-                        fWriter.write(fileLines[i] + "\n");
+                        String endline = "\n";
+                        if(lines.contains(fileLines[i + 1])) {
+                            endline = "";
+                        }
+                        
+                        fWriter.write(fileLines[i] + endline);
+                        
                         this.isDirty = true;
                     }
                 }
+
+                if(!lines.contains(fileLines[fileLines.length - 1])) {
+                    fWriter.write(fileLines[fileLines.length - 1]);
+                    this.isDirty = true;
+                }
+
             }
         } catch (IOException e) {
             throw new RuntimeException();
