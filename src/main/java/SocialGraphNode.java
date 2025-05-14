@@ -5,14 +5,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SocialGraphNode {
 
     private Integer ID;
-    
     // HashSet handles duplicate values
     private Set<SocialGraphNode> followerNodes;
     private Set<SocialGraphNode> followingNodes; 
 
     public SocialGraphNode(int ID) {
         this.ID = ID;
-
         this.followerNodes = ConcurrentHashMap.newKeySet();
         this.followingNodes = ConcurrentHashMap.newKeySet();
     }
@@ -77,17 +75,14 @@ public class SocialGraphNode {
         String result = "{ID: " + Integer.toString(this.ID);
 
         result += ",\nFollowers: ";
-
         for(SocialGraphNode followerNode : this.followerNodes) {
             result += ", " + Integer.toString(followerNode.GetID());
         }
 
         result += ",\nFollowing: ";
-
         for(SocialGraphNode followingNode : this.followingNodes) {
             result += ", " + Integer.toString(followingNode.GetID());
         }
-
         result += "}";
 
         return result;

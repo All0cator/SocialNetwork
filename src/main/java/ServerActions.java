@@ -49,12 +49,11 @@ public class ServerActions implements Runnable {
     @Override
     public void run() {
         try {
-
             while(!this.connectionSocket.isClosed()) {
                 Message connectionMessage = (Message)iStream.readObject();
-                
+
                 switch (connectionMessage.type) {
-                    case MessageType.LOGIN:
+                    case LOGIN:
                     {
                         PayloadCredentials pCredentials = (PayloadCredentials)connectionMessage.payload;
 
@@ -68,15 +67,14 @@ public class ServerActions implements Runnable {
 
                         oStream.writeObject(loginResponse);
                         oStream.flush();
-
                     }    
                     break;
-                    case MessageType.SIGNUP:
+                    case SIGNUP:
                     {
                         PayloadCredentials pCredentials = (PayloadCredentials)connectionMessage.payload;
 
                         int ID = this.server.RegisterUser(pCredentials.credentials);
-                        
+
                         Message registerResponse = new Message();
                         registerResponse.type = MessageType.SIGNUP;
                         PayloadUserID pResult = new PayloadUserID();
@@ -87,7 +85,7 @@ public class ServerActions implements Runnable {
                         oStream.flush();
                     }
                     break;
-                    case MessageType.FOLLOW_REQUEST_ACCEPT:
+                    case FOLLOW_REQUEST_ACCEPT:
                     {
                         PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
 
@@ -96,22 +94,21 @@ public class ServerActions implements Runnable {
                         // Get target node
                         SocialGraphNode targetNode = this.server.GetSocialGraph().GetUserNode(pRequest.clientIDDestination);
 
-                        
                         if(sourceNode != null && targetNode != null) {
                             Directory sourceDirectory = this.server.GetDirectory(pRequest.clientIDSource);
                             Set<String> removeLines = new HashSet<String>();
                             removeLines.add(String.format("%d follow request", pRequest.clientIDDestination));
                             sourceDirectory.GetFile(sourceDirectory.GetLocalNotificationsName()).RemoveFile(removeLines);
-                            
+
                             sourceNode.AddFollower(targetNode);
                             targetNode.AddFollowing(sourceNode);
                         }
                     }
                     break;
-                    case MessageType.FOLLOW_REQUEST_REJECT:
+                    case FOLLOW_REQUEST_REJECT:
                     {
                         PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
-                        
+
                         // Get source node
                         SocialGraphNode sourceNode = this.server.GetSocialGraph().GetUserNode(pRequest.clientIDSource);
 
@@ -123,27 +120,25 @@ public class ServerActions implements Runnable {
                         }
                     }
                     break;
-                    case MessageType.FOLLOW_REQUEST:
+                    case FOLLOW_REQUEST:
                     {
                         PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
 
                         // Follow request goes to the targetNode's directory Others_31clientID
-
                         Directory targetDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
                         ArrayList<String> appendLines = new ArrayList<String>();
                         appendLines.add(String.format("%d follow request", pRequest.clientIDSource));
                         targetDirectory.GetFile(targetDirectory.GetLocalNotificationsName()).AppendFile(appendLines);
                     }
                     break;
-                    case MessageType.UNFOLLOW:
+                    case UNFOLLOW:
                     {
                         PayloadClientRequest pClientRequest = (PayloadClientRequest)connectionMessage.payload;
-                        
+
                         SocialGraph socialGraph = this.server.GetSocialGraph();
 
                         SocialGraphNode source = socialGraph.GetUserNode(pClientRequest.clientIDSource);
                         SocialGraphNode dest = socialGraph.GetUserNode(pClientRequest.clientIDDestination);
-
 
                         if(source != null && dest != null) {
                             source.RemoveFollowing(dest);
@@ -151,7 +146,6 @@ public class ServerActions implements Runnable {
                         }
 
                         // return social graph
-
                         Message response = new Message();
                         response.type = MessageType.UNFOLLOW;
                         PayloadClientGraph pClientGraph = new PayloadClientGraph();
@@ -163,7 +157,6 @@ public class ServerActions implements Runnable {
 
                             for(Integer followingID : followingIDs) {
                                 String userName = this.server.GetUserName(followingID);
-    
                                 pClientGraph.followings.add(new UserAccountData(followingID, userName));
                             }
                         }
@@ -172,7 +165,7 @@ public class ServerActions implements Runnable {
                         this.oStream.flush();
                     }
                     break;
-                    case MessageType.GET_CLIENT_GRAPH:
+                    case GET_CLIENT_GRAPH:
                     {
                         int userID = ((PayloadUserID)connectionMessage.payload).clientID;
 
@@ -194,7 +187,7 @@ public class ServerActions implements Runnable {
                                 String followerName = this.server.GetUserName(followerID);
                                 pGraph.followers.add(new UserAccountData(followerID, followerName));
                             }
-                            
+
                             for(Integer followingID : followingIDs) {
                                 String followingName = this.server.GetUserName(followingID);
                                 pGraph.followings.add(new UserAccountData(followingID, followingName));
@@ -205,12 +198,10 @@ public class ServerActions implements Runnable {
                         this.oStream.flush();
                     }
                     break;
-                    case MessageType.GET_NOTIFICATIONS:
+                    case GET_NOTIFICATIONS:
                     {
                         PayloadUserID pUserID = (PayloadUserID)connectionMessage.payload;
-
                         int userID = pUserID.clientID;
-
                         SocialGraphNode userNode = this.server.GetSocialGraph().GetUserNode(userID);
 
                         Message responseMessage = new Message();
@@ -248,10 +239,9 @@ public class ServerActions implements Runnable {
                         this.oStream.flush();
                     }
                     break;
-                    case MessageType.ACCESS_PROFILE:
+                    case ACCESS_PROFILE:
                     {
                         PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
-
                         Directory userDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
 
                         PayloadText pText = new PayloadText();
@@ -265,14 +255,13 @@ public class ServerActions implements Runnable {
                         this.oStream.flush();
                     }
                     break;
-                    case MessageType.UPLOAD:
+                    case UPLOAD:
                     {
                         PayloadUpload pUpload = (PayloadUpload)connectionMessage.payload;
-                        
-                        // write to the correct directory append to clientProfile also
 
+                        // write to the correct directory append to clientProfile also
                         Directory clientDirectory = this.server.GetDirectory(pUpload.clientID);
-                        
+
                         // client directory exists
                         clientDirectory.SetFile(pUpload.imageName);
                         clientDirectory.GetFile(pUpload.imageName).WriteFile(pUpload.imageData);
@@ -285,7 +274,7 @@ public class ServerActions implements Runnable {
                         clientDirectory.GetFile(clientDirectory.GetLocalProfileName()).AppendFile(appendList);
                     }
                     break;
-                    case MessageType.DOWNLOAD_PHOTO:
+                    case DOWNLOAD_PHOTO:
                     {
                         PayloadDownload pDownload = (PayloadDownload)connectionMessage.payload;
                         int srcClientID = pDownload.clientID;
@@ -298,11 +287,9 @@ public class ServerActions implements Runnable {
                         responseMessage.payload = pResponse;
 
                         // Find client with phtoName
-
                         SocialGraphNode srcClientNode = this.server.GetSocialGraph().GetUserNode(srcClientID); 
-                        // we trust in god it is not null 
                         Set<Integer> followings = srcClientNode.GetFollowingIDs();
-                        
+
                         _File photoFile = null;
                         int directoryClientID = 0;
 
@@ -353,7 +340,7 @@ public class ServerActions implements Runnable {
                         this.connectionSocket.setSoTimeout(pDownload3.timeout);
 
                         Message timeoutMessage = new Message();
-                        
+
                         System.out.println("Sending Image Parameters");
                         this.oStream.writeObject(timeoutMessage);
                         this.oStream.flush();
@@ -367,19 +354,18 @@ public class ServerActions implements Runnable {
                             this.iStream.readObject();
                         } catch (SocketTimeoutException e) {
                             // retransmission
-
                             System.out.println("Server did not receive ACK");
 
                             Message timeoutMessage2 = new Message();
                             timeoutMessage2.payload = (int)serializedBytes.length;
                             System.out.println("Retransmit Image Parameters");
+
                             this.oStream.writeObject(timeoutMessage2);
                             this.oStream.flush();
 
                             // reset timeout
                             this.connectionSocket.setSoTimeout(0);
                         }
-
 
                         System.out.println("ACK Image Parameters");
                         // wait for ACK to start the Image transmission
@@ -389,7 +375,6 @@ public class ServerActions implements Runnable {
                         int serializedBytesOffset = 0;
 
                         while(i < 10) {
-
                             System.out.println("i: " + Integer.toString(i));
                             CommandAPDU commandAPDU = null;
 
@@ -401,7 +386,7 @@ public class ServerActions implements Runnable {
                                 this.iStream.readObject();
                                 // ignore CommandAPDU receive the second one
                             }
-                            
+
                             if(i == 3) {
                                 System.out.println("Reading CommandAPDU...");
                                 commandAPDU = (CommandAPDU)this.iStream.readObject();
@@ -424,7 +409,6 @@ public class ServerActions implements Runnable {
                             System.out.println("Sending ResponseAPDU...");
                             this.oStream.writeObject(responseAPDU);
                             this.oStream.flush();
-
                             i++;
                         }
 
@@ -445,23 +429,22 @@ public class ServerActions implements Runnable {
                         // write image and accompaying text to Server Directory also of the client
                         Directory srcUserDirectory = this.server.GetDirectory(srcClientID);
                         srcUserDirectory.SetFile(accompanyingTextFileName);
-                        
+
                         if(accompanyingTextFile != null) {
                             srcUserDirectory.SetFile(accompanyingTextFileName);
                             srcUserDirectory.GetFile(accompanyingTextFileName).WriteFile(pText.text);
                         }
-                        
+
                         // Photo file is not null
                         srcUserDirectory.SetFile(photoName);
                         srcUserDirectory.GetFile(photoName).WriteFile(serializedBytes);
                     }
                     break;
-                    case MessageType.SYNCHRONIZE_DIRECTORY:
+                    case SYNCHRONIZE_DIRECTORY:
                     {
                         PayloadDirectory pDirectory = (PayloadDirectory)connectionMessage.payload;
 
                         // Get users directory and compute FileDatas
-
                         Directory clientDirectory = this.server.GetDirectory(pDirectory.clientID);
                         ArrayList<String> unsynchronizedFilePaths = clientDirectory.ComputeUnsynchronizedFilePaths(pDirectory.fileDatas);
 
@@ -469,7 +452,7 @@ public class ServerActions implements Runnable {
                         this.oStream.flush();
                     }
                     break;
-                    case MessageType.GET_FILE_CONTENTS:
+                    case GET_FILE_CONTENTS:
                     {
                         PayloadDownload pDownload = (PayloadDownload)connectionMessage.payload;
 
@@ -480,7 +463,7 @@ public class ServerActions implements Runnable {
                     }
                     break;
                     default:
-                    break;
+                        break;
                 }
             }
         } catch(IOException e) {

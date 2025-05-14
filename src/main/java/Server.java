@@ -71,7 +71,7 @@ public class Server implements Runnable {
     public synchronized int RegisterUser(Credentials credentials) {
         String password = this.userNameToPassword.get(credentials.userName);
         int ID = -1;
-        
+
         if(password == null) {
             userNameToPassword.put(credentials.userName, credentials.password);
             ID = this.userCount++;
@@ -97,11 +97,8 @@ public class Server implements Runnable {
         // Load User Credentials
 
         userCount = 0;
-
         BufferedReader reader = null;
-        
         String line;
-        
         try {
             reader = new BufferedReader(new FileReader(Server.serverDirectoryPath + "Credentials.txt"));
 
@@ -112,9 +109,9 @@ public class Server implements Runnable {
 
             while((line = reader.readLine()) != null) {
                 String credentials[] = line.trim().split(" ");
-                
+
                 if(credentials.length != 3) continue;
-                
+
                 this.userNameToID.put(credentials[1], Integer.parseInt(credentials[0]));
                 this.IDToUserName.put(Integer.parseInt(credentials[0]), credentials[1]);
                 this.userNameToPassword.put(credentials[1], credentials[2]);
@@ -138,9 +135,7 @@ public class Server implements Runnable {
         //}
 
         // Load Social Graph
-
         reader = null;
-        
         try {
             reader = new BufferedReader(new FileReader(Server.serverDirectoryPath + "SocialGraph.txt"));
 
@@ -148,7 +143,7 @@ public class Server implements Runnable {
 
             while((line = reader.readLine()) != null) {
                 String tokens[] = line.trim().split(" ");
-                
+
                 if(tokens.length == 0) continue;
                 int userID = Integer.parseInt(tokens[0]);
                 int followersIDs[] = null;
@@ -199,9 +194,7 @@ public class Server implements Runnable {
         }
 
         boolean isOpen = true;
-
         Socket connectionSocket;
-
         while(isOpen) {
             try {
                 connectionSocket = this.serverSocket.accept();

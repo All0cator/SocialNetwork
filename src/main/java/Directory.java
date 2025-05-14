@@ -31,7 +31,6 @@ public class Directory {
 
         Set<FileData> localDirectoryFileDataSet = new HashSet<FileData>();
 
-
         for(int i = 0; i < localDirectoryFileData.length; ++i) {
             localDirectoryFileDataSet.add(localDirectoryFileData[i]);
         }
@@ -43,7 +42,7 @@ public class Directory {
                 filesPathsUnsynchronized.add(remoteFileData.filePath);
             } else {
                 FileData foundLocalFileData = new FileData("", new BigInteger("0"));
-                
+
                 // query all localFileDatas
                 // guaranteed to find localFileData mathcing remoteFileData
                 for(FileData localFileData : localDirectoryFileDataSet) {
@@ -63,11 +62,10 @@ public class Directory {
     }
 
     public synchronized FileData[] ComputeFileDatas() {
-        
-        if(localFilePathToFile.size() == 0) return null;
-        
-        FileData[] fileDatas = new FileData[localFilePathToFile.size()];
 
+        if(localFilePathToFile.size() == 0) return null;
+
+        FileData[] fileDatas = new FileData[localFilePathToFile.size()];
         BigInteger[] checksums = new BigInteger[localFilePathToFile.size()];
         _File[] files = new _File[localFilePathToFile.size()];
 
@@ -85,7 +83,7 @@ public class Directory {
         for(int j = 0; j < files.length; ++j) {
             fileDatas[j] = new FileData(files[j].GetLocalFilePath(), checksums[j]);
         }
-        
+
         return fileDatas;
     }
 
@@ -135,14 +133,12 @@ public class Directory {
         CreateHierarchy(root);
 
         HashSet<String> filePaths = new HashSet<String>();
-
         rootFolder.GetFilePaths(filePaths, this.rootPath);
         this.localFilePathToFile = new ConcurrentHashMap<String, _File>();
 
         for(String filePath : filePaths) {
             this.localFilePathToFile.put(filePath, new _File(filePath, this.rootPath + filePath));
         }
-
         //PrintDirectory();
     }
 
@@ -155,7 +151,6 @@ public class Directory {
     }
 
     public synchronized void PrintDirectory() {
-
         for(String localFilePath : this.localFilePathToFile.keySet()) {
             System.out.println(this.rootPath + localFilePath);
         }

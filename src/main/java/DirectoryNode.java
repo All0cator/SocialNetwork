@@ -32,7 +32,6 @@ public class DirectoryNode {
             filePaths.add(this.pathName.replaceAll(rootPath + "/", ""));
             return;
         }
-
         //System.out.println(this.pathName);
 
         for(int i = 0; i < this.children.size(); ++i) {
@@ -47,7 +46,6 @@ public class DirectoryNode {
     public void Print() {
 
         String directory = isDirectory ? "/" : "";
-
         int idx = this.pathName.lastIndexOf("/");
         String name;
 

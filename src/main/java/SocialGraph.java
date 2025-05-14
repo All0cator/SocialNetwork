@@ -1,10 +1,10 @@
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SocialGraph {
-    
+
     // HashMap provides fast query of a node with a specific userID
     private ConcurrentHashMap<Integer, SocialGraphNode> userIDToNode;
-    
+
     public SocialGraph() {
         this.userIDToNode = new ConcurrentHashMap<Integer, SocialGraphNode>();
     }
@@ -27,7 +27,7 @@ public class SocialGraph {
                     followerNode = new SocialGraphNode(followersIDs[i]);
                     userIDToNode.put(followersIDs[i], followerNode);
                 }
-                
+
                 followerNode.AddFollowing(userNode);
                 userNode.AddFollower(followerNode);
             }
