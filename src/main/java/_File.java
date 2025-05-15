@@ -29,7 +29,7 @@ public class _File {
     public _File(String localFilePath, String globalFilePath) {
         this.localFilePath = localFilePath;
         this.globalFilePath = globalFilePath;
-        this.isDirty = true; // so that the first time we call get checksum it calculates it
+        this.isDirty = true;  // so that the first time we call get checksum it calculates it
     }
 
     public String GetLocalFilePath() {
@@ -41,7 +41,7 @@ public class _File {
     }
 
     public synchronized BigInteger GetChecksum() {
-        if(isDirty) {
+        if (isDirty) {
             // Generate checksum
             MessageDigest messageDigest;
             byte[] fileBytes;
@@ -69,52 +69,46 @@ public class _File {
     public String GetFileExtension() {
         int extensionIndex = globalFilePath.lastIndexOf("."); 
 
-        if(extensionIndex != -1) {
+        if (extensionIndex != -1) {
             return globalFilePath.substring(extensionIndex);
         } else {
             return "";
         }
     }
 
-    // returns either a String with \n characters for txt files and for images a byte[] containing the Image 
+    // Returns either a String with \n characters for txt files and for images a byte[] containing the Image 
     public synchronized Object ReadFile() {
         Object result = null;
-
         String fileExtension = this.GetFileExtension();
 
-        if(fileExtension.equals("")) {
+        if (fileExtension.equals("")) {
             throw new RuntimeException();
         }
-        
-        if(GetFileExtension().equals(".txt")) {
-            // it is a text file
+
+        if (GetFileExtension().equals(".txt")) {
+            // It is a text file
             result = "";
-
             BufferedReader br = null;
-
             try {
                 br = new BufferedReader(new FileReader(new File(this.globalFilePath)));
-
                 String line = null;
 
-                while((line = br.readLine()) != null) {
+                while ((line = br.readLine()) != null) {
                     result += line + "\n";
                 }
 
                 int idx = ((String)result).lastIndexOf("\n");
-
                 int endIndex = idx;
 
-                if(idx == -1) {
+                if (idx == -1) {
                     endIndex = 0;
                 }
 
                 result = ((String)result).subSequence(0, endIndex);
-
             } catch(IOException e) {
                 throw new RuntimeException();
             } finally {
-                if(br != null) {
+                if (br != null) {
                     try {
                         br.close();
                     } catch (IOException e) {
@@ -122,23 +116,18 @@ public class _File {
                     }
                 }
             }
-
         } else {
-            // it is an image
+            // It is an image
             try {
                 BufferedImage bImage = ImageIO.read(new File(this.globalFilePath));
-
                 ByteArrayOutputStream oStream = new ByteArrayOutputStream();
-
                 ImageIO.write(bImage, fileExtension.substring(1), oStream);
-
                 result = oStream.toByteArray();
             } catch (IOException e) {
                 System.out.println(new File(this.globalFilePath).getAbsolutePath());
                 System.out.println(e.getMessage());
                 throw new RuntimeException();
             }
-            
         }
 
         return result;
@@ -147,23 +136,20 @@ public class _File {
     public synchronized void WriteFile(Object content) {
         String fileExtension = this.GetFileExtension();
 
-        if(fileExtension.equals("")) {
+        if (fileExtension.equals("")) {
             throw new RuntimeException();
         }
 
-        if(fileExtension.equals(".txt")) {
+        if (fileExtension.equals(".txt")) {
             String lines = (String)content;
-
             FileWriter fwriter = null;
-
             try {
                 fwriter = new FileWriter(new File(this.globalFilePath));
                 fwriter.write(lines);
-
             } catch(IOException e) {
                 throw new RuntimeException();
             } finally {
-                if(fwriter != null) {
+                if (fwriter != null) {
                     try {
                         fwriter.close();
                     } catch (IOException e) {
@@ -172,18 +158,16 @@ public class _File {
                 }
             }
         } else {
-            // is it an image
+            // Is it an image
             byte[] data = (byte[])content;
-
-
             ByteArrayInputStream bao = new ByteArrayInputStream(data);
             try {
-            BufferedImage bImage = ImageIO.read(bao);
+                BufferedImage bImage = ImageIO.read(bao);
 
-            // . in regex means any character we have to escape it
-            String[] tokens = this.GetFileExtension().split("\\.");
+                // . in regex means any character we have to escape it
+                String[] tokens = this.GetFileExtension().split("\\.");
 
-            ImageIO.write(bImage, tokens[1], new File(this.globalFilePath));
+                ImageIO.write(bImage, tokens[1], new File(this.globalFilePath));
             } catch (IOException e) {
                 throw new RuntimeException();
             }
@@ -191,23 +175,16 @@ public class _File {
     }
 
     public synchronized void AppendFile(ArrayList<String> lines) {
-
         FileWriter fWriter = null;
-
-        
-        
         try {
-            
             String firstLine = "\n";
-            if(new File(this.globalFilePath).length() == 0) {
+            if (new File(this.globalFilePath).length() == 0) {
                 firstLine = "";
             }
 
             fWriter = new FileWriter(this.globalFilePath, true);
-
             String newLine = firstLine;
-
-            for(int i = 0; i < lines.size(); ++i) {
+            for (int i = 0; i < lines.size(); ++i) {
                 fWriter.write(newLine + lines.get(i));
                 newLine = "\n";
                 this.isDirty = true;
@@ -216,7 +193,7 @@ public class _File {
             System.out.println(e.getMessage());
             throw new RuntimeException();
         } finally {
-            if(fWriter != null) {
+            if (fWriter != null) {
                 try {
                     fWriter.close();
                 } catch (IOException e) {
@@ -228,40 +205,35 @@ public class _File {
 
     // Only for .txt files
     public synchronized void RemoveFile(Set<String> lines) {
-
         FileWriter fWriter = null;
-
         String[] fileLines = ((String)ReadFile()).split("\n");
-
-        
         try {
             fWriter = new FileWriter(this.globalFilePath);
-            
-            if(fileLines != null) {
-                for(int i = 0; i < fileLines.length - 1; ++i) {
-                    
-                    if(!lines.contains(fileLines[i])) {
+
+            if (fileLines != null) {
+                for (int i = 0; i < fileLines.length - 1; ++i) {
+
+                    if (!lines.contains(fileLines[i])) {
                         String endline = "\n";
-                        if(lines.contains(fileLines[i + 1])) {
+                        if (lines.contains(fileLines[i + 1])) {
                             endline = "";
                         }
-                        
+
                         fWriter.write(fileLines[i] + endline);
-                        
+
                         this.isDirty = true;
                     }
                 }
 
-                if(!lines.contains(fileLines[fileLines.length - 1])) {
+                if (!lines.contains(fileLines[fileLines.length - 1])) {
                     fWriter.write(fileLines[fileLines.length - 1]);
                     this.isDirty = true;
                 }
-
             }
         } catch (IOException e) {
             throw new RuntimeException();
         } finally {
-            if(fWriter != null) {
+            if (fWriter != null) {
                 try {
                     fWriter.close();
                 } catch (IOException e) {

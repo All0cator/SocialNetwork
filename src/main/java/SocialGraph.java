@@ -15,15 +15,15 @@ public class SocialGraph {
 
     public synchronized void AddUser(int userID, int followersIDs[]) {
         SocialGraphNode userNode = userIDToNode.get(userID);
-        if(userNode == null) {
+        if (userNode == null) {
             userNode = new SocialGraphNode(userID);
             userIDToNode.put(userID, userNode);
         }
 
-        if(followersIDs != null) {
-            for(int i = 0; i < followersIDs.length; ++i) {
+        if (followersIDs != null) {
+            for (int i = 0; i < followersIDs.length; ++i) {
                 SocialGraphNode followerNode = userIDToNode.get(followersIDs[i]);
-                if(followerNode == null) {
+                if (followerNode == null) {
                     followerNode = new SocialGraphNode(followersIDs[i]);
                     userIDToNode.put(followersIDs[i], followerNode);
                 }

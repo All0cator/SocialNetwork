@@ -7,7 +7,7 @@ public class Message implements Serializable {
     public Object payload;
 
     public Message() {
-        
+        // Default constructor
     }
 
     public Message(Message other) {

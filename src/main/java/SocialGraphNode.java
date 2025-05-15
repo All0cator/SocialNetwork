@@ -19,7 +19,7 @@ public class SocialGraphNode {
         return this.ID;
     }
 
-    // you cannot add while also Getting IDs so this must be synchronized
+    // You cannot add while also Getting IDs so this must be synchronized
     public synchronized void AddFollower(SocialGraphNode followerNode) {
         this.followerNodes.add(followerNode);
     }
@@ -51,7 +51,7 @@ public class SocialGraphNode {
     public synchronized Set<Integer> GetFollowingIDs() {
         Set<Integer> result = new HashSet<Integer>();
 
-        for(SocialGraphNode node : this.followingNodes) {
+        for (SocialGraphNode node : this.followingNodes) {
             result.add(node.GetID());
         }
 
@@ -60,7 +60,7 @@ public class SocialGraphNode {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj == this) return true;
+        if (obj == this) return true;
 
         return ((SocialGraphNode)obj).GetID() == this.GetID();
     }
@@ -75,12 +75,12 @@ public class SocialGraphNode {
         String result = "{ID: " + Integer.toString(this.ID);
 
         result += ",\nFollowers: ";
-        for(SocialGraphNode followerNode : this.followerNodes) {
+        for (SocialGraphNode followerNode : this.followerNodes) {
             result += ", " + Integer.toString(followerNode.GetID());
         }
 
         result += ",\nFollowing: ";
-        for(SocialGraphNode followingNode : this.followingNodes) {
+        for (SocialGraphNode followingNode : this.followingNodes) {
             result += ", " + Integer.toString(followingNode.GetID());
         }
         result += "}";

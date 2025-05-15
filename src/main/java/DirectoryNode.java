@@ -15,12 +15,12 @@ public class DirectoryNode {
         this.isDirectory = isDirectory;
         this.children = new ArrayList<DirectoryNode>();
 
-        if(isDirectory) {
+        if (isDirectory) {
             File[] filePaths = new File(pathName).listFiles();
 
-            if(filePaths == null) return;
+            if (filePaths == null) return;
 
-            for(int i = 0; i < filePaths.length; ++i) {
+            for (int i = 0; i < filePaths.length; ++i) {
                 boolean isChildDirectory = filePaths[i].isDirectory();
                 children.add(new DirectoryNode(pathName + "/" + filePaths[i].getName(), depth + 1, isChildDirectory));
             }
@@ -28,13 +28,12 @@ public class DirectoryNode {
     }
 
     public void GetFilePaths(HashSet<String> filePaths, String rootPath) {
-        if(!this.isDirectory) {
+        if (!this.isDirectory) {
             filePaths.add(this.pathName.replaceAll(rootPath + "/", ""));
             return;
         }
-        //System.out.println(this.pathName);
 
-        for(int i = 0; i < this.children.size(); ++i) {
+        for (int i = 0; i < this.children.size(); ++i) {
             this.children.get(i).GetFilePaths(filePaths, rootPath);
         }
     }
@@ -44,12 +43,11 @@ public class DirectoryNode {
     }
 
     public void Print() {
-
         String directory = isDirectory ? "/" : "";
         int idx = this.pathName.lastIndexOf("/");
         String name;
 
-        if(idx < 0 || idx >= this.pathName.length() - 1) {
+        if (idx < 0 || idx >= this.pathName.length() - 1) {
             name = this.pathName;
         } else {
             name = this.pathName.substring(idx + 1);
@@ -58,7 +56,7 @@ public class DirectoryNode {
         String blank = "    ".repeat(depth - 1);
         System.out.println(blank + "|---" + name + directory);
 
-        for(int i = 0; i < this.children.size(); ++i) {
+        for (int i = 0; i < this.children.size(); ++i) {
             this.children.get(i).Print();
         }
     }

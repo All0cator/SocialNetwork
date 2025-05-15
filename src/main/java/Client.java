@@ -52,12 +52,12 @@ public class Client implements Runnable {
     private ObjectOutputStream oStream;
 
     public String GetClientProfileFilePath() {
-        if(this.ID == -1) return "";
+        if (this.ID == -1) return "";
         return this.clientDirectoryPath + "Profile_31client" + Integer.toString(this.ID) + ".txt";
     }
 
     public String GetClientNotificationsFilePath() {
-        if(this.ID == -1) return "";
+        if (this.ID == -1) return "";
         return this.clientDirectoryPath + "Others_31client" + Integer.toString(this.ID) + ".txt";
     }
 
@@ -89,7 +89,7 @@ public class Client implements Runnable {
     }
 
     public static void main(String[] args) {
-        if(args.length != 4) return;
+        if (args.length != 4) return;
 
         new Thread(new Client(args[0], Integer.parseInt(args[1]), args[2], Integer.parseInt(args[3]))).start();
     }
@@ -120,7 +120,7 @@ public class Client implements Runnable {
         boolean isRunning = true;
         PrintLoginScreenOptions();
         try {
-            while(isRunning) {
+            while (isRunning) {
                 int option;
                 String input = sc.nextLine().trim();
                 try {
@@ -163,16 +163,15 @@ public class Client implements Runnable {
 
                         int clientID = ((PayloadUserID)serverResponse.payload).clientID;
                         if (clientID != -1) {
-                            // valid connection
+                            // Valid connection
                             this.ID = clientID;
                             this.clientDirectoryPath = "src/main/resources/ClientDirectories/Client" + Integer.toString(clientID) + "/";
                             this.clientDirectory = new Directory(this.clientDirectoryPath, clientID);
                             System.out.println("✓ Login successful! Welcome client " + Integer.toString(this.ID));
 
                             EnterApplication();
-                        }
-                        else {
-                            // wrong credentials
+                        } else {
+                            // Wrong credentials
                             System.out.println("✗ Login failed: Incorrect username or password");
                         }
                     }
@@ -201,15 +200,14 @@ public class Client implements Runnable {
                         int clientID = ((PayloadUserID)serverResponse.payload).clientID;
 
                         if (clientID != -1) {
-                            // valid connection
+                            // Valid connection
                             this.ID = clientID;
                             this.clientDirectoryPath = "src/main/resources/ClientDirectories/Client" + Integer.toString(clientID) + "/";
                             this.clientDirectory = new Directory(this.clientDirectoryPath, clientID);
                             System.out.println("✓ Account created successfully! Welcome client " + Integer.toString(this.ID));
 
                             EnterApplication();
-                        }
-                        else {
+                        } else {
                             System.out.println("✗ Signup failed: Username already exists");
                         }
                     }
@@ -230,7 +228,7 @@ public class Client implements Runnable {
 
         boolean isRunning = true;
         try {
-            while(isRunning) {
+            while (isRunning) {
                 int option;
                 String input = sc.nextLine().trim();
                 try {
@@ -262,7 +260,7 @@ public class Client implements Runnable {
                         ArrayList<String> followRequests = new ArrayList<String>();
 
                         for (int i = 0; i < notifications.size(); ++i) {
-                            if(notifications.get(i).contains("follow request")) {
+                            if (notifications.get(i).contains("follow request")) {
                                 followRequests.add(notifications.get(i));
                             }
                         }
@@ -282,12 +280,12 @@ public class Client implements Runnable {
                         int option2;
                         try {
                             option2 = Integer.parseInt(this.sc.nextLine());
-                            if(option2 < -1 || option2 >= followRequests.size()) {
+                            if (option2 < -1 || option2 >= followRequests.size()) {
                                 System.out.println("Invalid selection.");
                                 System.out.println("═══════════════════════════════════════");
                                 break;
                             }
-                        } catch(NumberFormatException e) {
+                        } catch (NumberFormatException e) {
                             System.out.println("Invalid input. Please enter a number.");
                             System.out.println("═══════════════════════════════════════");
                             break;
@@ -310,7 +308,7 @@ public class Client implements Runnable {
                         int option3;
                         try {
                             option3 = Integer.parseInt(this.sc.nextLine());
-                            if(option3 < -1 || option3 > 2) {
+                            if (option3 < -1 || option3 > 2) {
                                 System.out.println("Invalid selection.");
                                 System.out.println("═══════════════════════════════════════");
                                 break;
@@ -335,7 +333,7 @@ public class Client implements Runnable {
                             requestMessage.type = MessageType.FOLLOW_REQUEST_REJECT;
                             System.out.println("Rejecting follow request...");
                         } else {
-                            // we are accepting and sending another request
+                            // We are accepting and sending another request
                             requestMessage.type = MessageType.FOLLOW_REQUEST_ACCEPT;
                             System.out.println("Accepting follow request and following back...");
                         }
@@ -390,7 +388,7 @@ public class Client implements Runnable {
                             String inputFollow = this.sc.nextLine().trim();
                             followUserID = inputFollow.isEmpty() ? -1 : Integer.parseInt(inputFollow);
 
-                            if(followUserID < -1) {
+                            if (followUserID < -1) {
                                 System.out.println("✗ Invalid user ID. Please enter a non-negative number.");
                                 System.out.println("═══════════════════════════════════════");
                                 break;
@@ -446,7 +444,7 @@ public class Client implements Runnable {
                             String inputUnfollow = this.sc.nextLine().trim();
                             option2 = inputUnfollow.isEmpty() ? -1 : Integer.parseInt(inputUnfollow);
 
-                            if(option2 < -1 || option2 >= this.followingDatas.size()) {
+                            if (option2 < -1 || option2 >= this.followingDatas.size()) {
                                 System.out.println("✗ Invalid selection.");
                                 System.out.println("═══════════════════════════════════════");
                                 break;
@@ -500,10 +498,10 @@ public class Client implements Runnable {
                         // View notifications
                         System.out.println("\n════════════ NOTIFICATIONS ════════════");
 
-                        if(this.notifications.size() == 0) {
+                        if (this.notifications.size() == 0) {
                             System.out.println("No notifications");
                         } else {
-                            for(int i = 0; i < this.notifications.size(); ++i) {
+                            for (int i = 0; i < this.notifications.size(); ++i) {
                                 System.out.println(" • " + this.notifications.get(i));
                             }
                         }
@@ -516,14 +514,14 @@ public class Client implements Runnable {
                         // Access Profile
                         System.out.println("\n═══════════ PROFILE ACCESS ═══════════");
 
-                        if(this.followingDatas.size() == 0) {
+                        if (this.followingDatas.size() == 0) {
                             System.out.println("You are not following anyone.");
                             System.out.println("═══════════════════════════════════════");
                             break;
                         }
 
                         System.out.println("Users you follow:");
-                        for(int i = 0; i < this.followingDatas.size(); ++i) {
+                        for (int i = 0; i < this.followingDatas.size(); ++i) {
                             System.out.printf(" %d) %s\n", i, this.followingDatas.get(i));
                         }
 
@@ -531,7 +529,7 @@ public class Client implements Runnable {
                         int choice2;
                         try {
                             choice2 = Integer.parseInt(this.sc.nextLine());
-                            if(choice2 < -1 || choice2 >= this.followingDatas.size()) {
+                            if (choice2 < -1 || choice2 >= this.followingDatas.size()) {
                                 System.out.println("Invalid selection.");
                                 System.out.println("═══════════════════════════════════════");
                                 break;
@@ -542,7 +540,7 @@ public class Client implements Runnable {
                             break;
                         }
 
-                        if(choice2 == -1) {
+                        if (choice2 == -1) {
                             System.out.println("═══════════════════════════════════════");
                             break;
                         }
@@ -554,7 +552,7 @@ public class Client implements Runnable {
                         requestMessage.payload = pRequest;
                         pRequest.clientIDSource = this.ID;
 
-                        for(int i = 0; i < this.followingDatas.size(); ++i) {
+                        for (int i = 0; i < this.followingDatas.size(); ++i) {
                             System.out.printf("%d) %s\n", i, this.followingDatas.get(i));
                         }
 
@@ -573,7 +571,7 @@ public class Client implements Runnable {
                             break;
                         }
 
-                        if(profileChoice == -1 || profileChoice == this.ID) {
+                        if (profileChoice == -1 || profileChoice == this.ID) {
                             System.out.println("═══════════════════════════════════════");
                             break;
                         }
@@ -584,7 +582,7 @@ public class Client implements Runnable {
                         this.oStream.flush();
 
                         // Receive answer either "Access Profile Denied Reason: not following specified client" or
-                        // receive text with Profile_31ClientID of user with clientID = ID then print it
+                        // Receive text with Profile_31ClientID of user with clientID = ID then print it
                         PayloadText pText = (PayloadText)this.iStream.readObject();
 
                         System.out.println(pText.text);
@@ -647,13 +645,13 @@ public class Client implements Runnable {
                         // Image to download and client that has it
                         System.out.println("Receiving response...");
                         Message imageSearchResult = (Message)this.iStream.readObject();
-                        if(imageSearchResult.type == MessageType.ERROR) {
+                        if (imageSearchResult.type == MessageType.ERROR) {
                             System.out.println("\n✗ Photo not found!");
                             System.out.println("═══════════════════════════════════════");
                             break;
                         }
 
-                        // else image search is successfull
+                        // Else image search is successfull
                         PayloadDownload pReply = (PayloadDownload)imageSearchResult.payload;
                         int clientID = pReply.clientID;
                         String photoName = pReply.name;
@@ -679,14 +677,14 @@ public class Client implements Runnable {
                         message2.payload = pDownload2;
                         pDownload2.clientID = clientID;
                         pDownload2.name = photoName;
-                        pDownload2.timeout = 5000;  //timeout; // round trip time is not consistent
+                        pDownload2.timeout = 5000;  //timeout; // Round trip time is not consistent
 
                         System.out.println("Ack");
                         this.oStream.writeObject(message2);
                         this.oStream.flush();
 
                         System.out.println("Receiving Image Parameters...");
-                        // send 3rd message wait for timeout
+                        // Send 3rd message wait for timeout
                         Message response2 = (Message)this.iStream.readObject();
 
                         // Retransmission
@@ -711,20 +709,20 @@ public class Client implements Runnable {
 
                         System.out.println(ne);
                         System.out.println(neFinalPacket);
-                        while(i < 10) {                            
+                        while (i < 10) {                            
                             // Send parameters
                             CommandAPDU commandAPDU = new CommandAPDU();
                             commandAPDU.nc = 0;
                             commandAPDU.ne = (short)ne;
 
-                            if(i == 9) {
+                            if (i == 9) {
                                 // 10th message final packet
                                 commandAPDU.ne = (short)neFinalPacket;    
                             }
 
-                            if(i == 2) {
+                            if (i == 2) {
                                 // 5th message of client to the server
-                                // send also timeout
+                                // Send also timeout
 
                                 ByteArrayOutputStream bOS = new ByteArrayOutputStream();
                                 ObjectOutputStream oS = new ObjectOutputStream(bOS);
@@ -734,7 +732,7 @@ public class Client implements Runnable {
 
                                 commandAPDU.commandData = bOS.toByteArray();
                                 commandAPDU.nc = (short)commandAPDU.commandData.length;
-                            } else if(i == 3) {
+                            } else if (i == 3) {
                                 // 6th message of client to the server
                                 try {
                                     Thread.sleep(10000);
@@ -746,7 +744,7 @@ public class Client implements Runnable {
                                     System.out.println("Sending CommandAPDU...");
                                     this.oStream.writeObject(commandAPDU2);
                                     this.oStream.flush();
-                                    // send 2 packets handle double ACK in server side
+                                    // Send 2 packets handle double ACK in server side
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
@@ -763,8 +761,8 @@ public class Client implements Runnable {
                             timeout = (int)(t2 - t1);
 
                             // Success
-                            if(responseAPDU.sw1sw2 == 0x9000) {
-                                for(int j = 0; j < commandAPDU.ne; ++j) {
+                            if (responseAPDU.sw1sw2 == 0x9000) {
+                                for (int j = 0; j < commandAPDU.ne; ++j) {
                                     reconstructedImage.add(responseAPDU.responseData[j]);
                                 }
                             }
@@ -774,7 +772,7 @@ public class Client implements Runnable {
                         System.out.println("Finished!");
                         PayloadText textFile = (PayloadText)this.iStream.readObject();
 
-                        if(textFile.text == null) {
+                        if (textFile.text == null) {
                             System.out.println("There is no accompanying text with the photo requested");
                         } else {
                             BufferedWriter fw = null;
@@ -794,7 +792,7 @@ public class Client implements Runnable {
                         Byte[] imageData = reconstructedImage.toArray(new Byte[0]);
                         byte[] imageData2 = new byte[imageData.length];
                         // memcpy
-                        for(int j = 0; j < imageData.length; ++j) {
+                        for (int j = 0; j < imageData.length; ++j) {
                             imageData2[j] = imageData[j];
                         }
 
@@ -850,9 +848,9 @@ public class Client implements Runnable {
 
                         String[] newNotifications = pText.text.split("\n");
 
-                        if(newNotifications != null) {
+                        if (newNotifications != null) {
                             this.notifications.clear();
-                            for(String notification : newNotifications) {
+                            for (String notification : newNotifications) {
                                 this.notifications.add(notification);
                             }
                         }
@@ -872,8 +870,8 @@ public class Client implements Runnable {
                         // I dont care about type safety I know what Im doing v
                         ArrayList<String> unsynchronizedFilePaths = (ArrayList<String>)this.iStream.readObject();
 
-                        //System.out.println(unsynchronizedFilePaths.size());
-                        for(String filePath : unsynchronizedFilePaths) {
+                        // System.out.println(unsynchronizedFilePaths.size());
+                        for (String filePath : unsynchronizedFilePaths) {
                             Message getFileContentsMessage = new Message();
                             getFileContentsMessage.type = MessageType.GET_FILE_CONTENTS;
                             PayloadDownload pDownload = new PayloadDownload();
@@ -886,7 +884,7 @@ public class Client implements Runnable {
                             this.oStream.flush();
 
                             Object contents = this.iStream.readObject();
-                            // if(filePath.contains(".txt")) {
+                            // if (filePath.contains(".txt")) {
                             //     System.out.println((String)contents);
                             // }
                             this.clientDirectory.SetFile(filePath);
@@ -908,7 +906,7 @@ public class Client implements Runnable {
     }
 
     int _ceil(float x) {
-        if(x == (float)((int)x)) {
+        if (x == (float)((int)x)) {
             return (int)x;
         } else {
             return (int)x + 1;

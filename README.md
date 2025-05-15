@@ -10,18 +10,16 @@ cd SocialNetwork
 
 2. Build the project:
 ```
-gradle build
+gradle wrapper --gradle-version 8.5
 ```
 
 ### Running the Application
 #### Starting the Server
 ```
-gradle runServer
+./gradlew runServer -Phost=127.0.0.1 -Pport=8080
 ```
 
 #### Starting the Client
 ```
-gradle runClient
+./gradlew runClient -PserverHost=127.0.0.1 -PserverPort=8080 -PclientHost=127.0.0.1 -PclientPort=8081
 ```
-
-Note: The Server and Client args are hardwritten inside the build.gradle file.

@@ -13,38 +13,35 @@ public class FileData implements Serializable, Comparable {
         this.checksum = checksum;
     }
 
-    
     @Override
     public boolean equals(Object other) {
-        if(other == null) return false;
-        
+        if (other == null) return false;
+
         return this.filePath.equals(((FileData)other).filePath); 
     }
-    
+
     @Override
     public int hashCode() {
-        
         int code = 0;
-        
-        if(this.filePath != null) {
+
+        if (this.filePath != null) {
             code += this.filePath.hashCode();
         }
-        
-        if(this.checksum != null) {
+
+        if (this.checksum != null) {
             code += 31 * this.checksum.hashCode();
         }
-        
+
         return code;
     }
-    
+
     @Override
     public int compareTo(Object other) {
-        
         FileData o = (FileData)other;
-        
-        if(this.filePath.compareTo(o.filePath) == -1) {
+
+        if (this.filePath.compareTo(o.filePath) == -1) {
             return -1;
-        } else if(this.filePath.compareTo(o.filePath) == 1) {
+        } else if (this.filePath.compareTo(o.filePath) == 1) {
             return 1;
         } else {
             return 0;

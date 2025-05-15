@@ -49,7 +49,7 @@ public class ServerActions implements Runnable {
     @Override
     public void run() {
         try {
-            while(!this.connectionSocket.isClosed()) {
+            while (!this.connectionSocket.isClosed()) {
                 Message connectionMessage = (Message)iStream.readObject();
 
                 switch (connectionMessage.type) {
@@ -94,7 +94,7 @@ public class ServerActions implements Runnable {
                         // Get target node
                         SocialGraphNode targetNode = this.server.GetSocialGraph().GetUserNode(pRequest.clientIDDestination);
 
-                        if(sourceNode != null && targetNode != null) {
+                        if (sourceNode != null && targetNode != null) {
                             Directory sourceDirectory = this.server.GetDirectory(pRequest.clientIDSource);
                             Set<String> removeLines = new HashSet<String>();
                             removeLines.add(String.format("%d follow request", pRequest.clientIDDestination));
@@ -112,7 +112,7 @@ public class ServerActions implements Runnable {
                         // Get source node
                         SocialGraphNode sourceNode = this.server.GetSocialGraph().GetUserNode(pRequest.clientIDSource);
 
-                        if(sourceNode != null) {
+                        if (sourceNode != null) {
                             Directory sourceDirectory = this.server.GetDirectory(pRequest.clientIDSource);
                             Set<String> removeLines = new HashSet<String>();
                             removeLines.add(String.format("%d follow request", pRequest.clientIDDestination));
@@ -140,19 +140,19 @@ public class ServerActions implements Runnable {
                         SocialGraphNode source = socialGraph.GetUserNode(pClientRequest.clientIDSource);
                         SocialGraphNode dest = socialGraph.GetUserNode(pClientRequest.clientIDDestination);
 
-                        if(source != null && dest != null) {
+                        if (source != null && dest != null) {
                             source.RemoveFollowing(dest);
                             dest.RemoveFollower(source);
                         }
 
-                        // return social graph
+                        // Return social graph
                         Message response = new Message();
                         response.type = MessageType.UNFOLLOW;
                         PayloadClientGraph pClientGraph = new PayloadClientGraph();
                         response.payload = pClientGraph;
                         pClientGraph.followings = new ArrayList<UserAccountData>();
 
-                        if(source != null) {
+                        if (source != null) {
                             Set<Integer> followingIDs = source.GetFollowingIDs();
 
                             for(Integer followingID : followingIDs) {
@@ -179,16 +179,16 @@ public class ServerActions implements Runnable {
 
                         SocialGraphNode userNode = this.server.GetSocialGraph().GetUserNode(userID);
 
-                        if(userNode != null) {
+                        if (userNode != null) {
                             Set<Integer> followerIDs = userNode.GetFollowerIDs();
                             Set<Integer> followingIDs = userNode.GetFollowingIDs();
 
-                            for(Integer followerID : followerIDs) {
+                            for (Integer followerID : followerIDs) {
                                 String followerName = this.server.GetUserName(followerID);
                                 pGraph.followers.add(new UserAccountData(followerID, followerName));
                             }
 
-                            for(Integer followingID : followingIDs) {
+                            for (Integer followingID : followingIDs) {
                                 String followingName = this.server.GetUserName(followingID);
                                 pGraph.followings.add(new UserAccountData(followingID, followingName));
                             }
@@ -211,15 +211,15 @@ public class ServerActions implements Runnable {
 
                         pNotifications.text = "";
 
-                        if(userNode != null) {
+                        if (userNode != null) {
                             Set<Integer> followingsIDs = userNode.GetFollowingIDs();
 
-                            for(Integer ID : followingsIDs) {
+                            for (Integer ID : followingsIDs) {
                                 Directory followingDirectory = this.server.GetDirectory(ID);
 
                                 String notifications = followingDirectory.GetNotifications();
 
-                                if(notifications.length() == 0) continue;
+                                if (notifications.length() == 0) continue;
 
                                 pNotifications.text += followingDirectory.GetNotifications() + "\n";
                             }
@@ -227,9 +227,9 @@ public class ServerActions implements Runnable {
                             Directory userDirectory = this.server.GetDirectory(userID);
                             String[] userNotifications = userDirectory.GetNotifications().split("\n");
 
-                            if(userNotifications != null) {
-                                for(int i = 0; i < userNotifications.length; ++i) {
-                                    if(userNotifications[i].contains("follow request"))
+                            if (userNotifications != null) {
+                                for (int i = 0; i < userNotifications.length; ++i) {
+                                    if (userNotifications[i].contains("follow request"))
                                     pNotifications.text += userNotifications[i];
                                 }
                             }
@@ -247,7 +247,7 @@ public class ServerActions implements Runnable {
                         PayloadText pText = new PayloadText();
                         pText.text = "Access Profile Denied Reason: not following specified client";
 
-                        if(userDirectory != null) {
+                        if (userDirectory != null) {
                             pText.text = userDirectory.GetProfile();
                         }
 
@@ -259,10 +259,10 @@ public class ServerActions implements Runnable {
                     {
                         PayloadUpload pUpload = (PayloadUpload)connectionMessage.payload;
 
-                        // write to the correct directory append to clientProfile also
+                        // Write to the correct directory append to clientProfile also
                         Directory clientDirectory = this.server.GetDirectory(pUpload.clientID);
 
-                        // client directory exists
+                        // Client directory exists
                         clientDirectory.SetFile(pUpload.imageName);
                         clientDirectory.GetFile(pUpload.imageName).WriteFile(pUpload.imageData);
                         clientDirectory.SetFile(pUpload.textName);
@@ -293,15 +293,15 @@ public class ServerActions implements Runnable {
                         _File photoFile = null;
                         int directoryClientID = 0;
 
-                        for(Integer followingID : followings) {
+                        for (Integer followingID : followings) {
                             photoFile = this.server.GetDirectory(followingID).GetFile(photoName);
                             directoryClientID = followingID;
 
-                            if(photoFile != null) break;
+                            if (photoFile != null) break;
                         }
 
                         if(photoFile == null) {
-                            // file does not exist in following users thus return rejection
+                            // File does not exist in following users thus return rejection
                             Message rejectionMessage = new Message();
                             rejectionMessage.type = MessageType.ERROR;
                             rejectionMessage.payload = null;
@@ -311,7 +311,7 @@ public class ServerActions implements Runnable {
                             break;
                         }
 
-                        // image search successful
+                        // Image search successful
                         Message message1 = new Message();
                         message1.type = MessageType.SYN_ACK;
                         PayloadDownload pDownloadResult = new PayloadDownload();
@@ -345,15 +345,15 @@ public class ServerActions implements Runnable {
                         this.oStream.writeObject(timeoutMessage);
                         this.oStream.flush();
  
-                        // contains buffered Image serialized so when we deserialize we need to do ImageIO.write
+                        // Contains buffered Image serialized so when we deserialize we need to do ImageIO.write
                         byte[] serializedBytes = (byte[])photoFile.ReadFile();
 
-                        // retransmission
+                        // Retransmission
                         try {
                             System.out.println("Waiting for ACK");
                             this.iStream.readObject();
                         } catch (SocketTimeoutException e) {
-                            // retransmission
+                            // Retransmission
                             System.out.println("Server did not receive ACK");
 
                             Message timeoutMessage2 = new Message();
@@ -363,37 +363,37 @@ public class ServerActions implements Runnable {
                             this.oStream.writeObject(timeoutMessage2);
                             this.oStream.flush();
 
-                            // reset timeout
+                            // Reset timeout
                             this.connectionSocket.setSoTimeout(0);
                         }
 
                         System.out.println("ACK Image Parameters");
-                        // wait for ACK to start the Image transmission
+                        // Wait for ACK to start the Image transmission
                         Message response3 = (Message)this.iStream.readObject();
 
                         int i = 0;
                         int serializedBytesOffset = 0;
 
-                        while(i < 10) {
+                        while (i < 10) {
                             System.out.println("i: " + Integer.toString(i));
                             CommandAPDU commandAPDU = null;
 
                             try {
                                 System.out.println("Reading CommandAPDU...");
                                 commandAPDU = (CommandAPDU)this.iStream.readObject();
-                            } catch(SocketTimeoutException e) {
+                            } catch (SocketTimeoutException e) {
                                 this.connectionSocket.setSoTimeout(0);
                                 this.iStream.readObject();
-                                // ignore CommandAPDU receive the second one
+                                // Ignore CommandAPDU receive the second one
                             }
 
-                            if(i == 3) {
+                            if (i == 3) {
                                 System.out.println("Reading CommandAPDU...");
                                 commandAPDU = (CommandAPDU)this.iStream.readObject();
                             }
 
-                            if(commandAPDU.nc > 0) {
-                                // we have received timeout
+                            if (commandAPDU.nc > 0) {
+                                // We have received timeout
                                 ByteArrayInputStream baoo = new ByteArrayInputStream(commandAPDU.commandData);
                                 ObjectInputStream oi = new ObjectInputStream(baoo);
                                 this.connectionSocket.setSoTimeout(oi.readInt());
@@ -426,11 +426,11 @@ public class ServerActions implements Runnable {
                         this.oStream.writeObject(pText);
                         this.oStream.flush();
 
-                        // write image and accompaying text to Server Directory also of the client
+                        // Write image and accompaying text to Server Directory also of the client
                         Directory srcUserDirectory = this.server.GetDirectory(srcClientID);
                         srcUserDirectory.SetFile(accompanyingTextFileName);
 
-                        if(accompanyingTextFile != null) {
+                        if (accompanyingTextFile != null) {
                             srcUserDirectory.SetFile(accompanyingTextFileName);
                             srcUserDirectory.GetFile(accompanyingTextFileName).WriteFile(pText.text);
                         }
@@ -466,7 +466,7 @@ public class ServerActions implements Runnable {
                         break;
                 }
             }
-        } catch(IOException e) {
+        } catch (IOException e) {
             System.out.println(e.getMessage());
             throw new RuntimeException();
         } catch (ClassNotFoundException e) {

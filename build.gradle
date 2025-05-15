@@ -35,7 +35,14 @@ task runClient(type: JavaExec) {
     main = 'Client'
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in;
-    args = ['127.0.0.1', '8000', '127.0.0.1', '8001']
+
+    // Use project properties with defaults if not provided
+    args = [
+        project.findProperty('serverHost') ?: '127.0.0.1',
+        project.findProperty('serverPort') ?: '8080',
+        project.findProperty('clientHost') ?: '127.0.0.1',
+        project.findProperty('clientPort') ?: '8081'
+    ]
 }
 
 task runServer(type: JavaExec) {
@@ -44,7 +51,12 @@ task runServer(type: JavaExec) {
     main = 'Server'
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in;
-    args = ['127.0.0.1', '8000']
+
+    // Use project properties with defaults if not provided
+    args = [
+        project.findProperty('host') ?: '127.0.0.1',
+        project.findProperty('port') ?: '8080'
+    ]
 }
 
 task runDirectoryTest(type: JavaExec) {
