@@ -3,3 +3,4 @@ build/
 .gradle/
 bin
 gradle/
+src/main/resources
