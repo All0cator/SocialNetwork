@@ -22,7 +22,7 @@ public class Server implements Runnable {
 
     private ServerSocket serverSocket;
 
-    private ConcurrentHashMap<Integer, Directory> IDtoDirectory; // cache of user directories
+    private ConcurrentHashMap<Integer, Directory> IDtoDirectory;  // cache of user directories
 
     private ConcurrentHashMap<String, String> userNameToPassword;
     private ConcurrentHashMap<String, Integer> userNameToID;
@@ -35,12 +35,10 @@ public class Server implements Runnable {
     public synchronized Directory GetDirectory(int userID) throws IOException {
         Directory result = this.IDtoDirectory.get(userID);
 
-        if(result == null) {
-
-            if(this.socialGraph.GetUserNode(userID) == null) return null;
+        if (result == null) {
+            if (this.socialGraph.GetUserNode(userID) == null) return null;
 
             String clientDirectoryPath = Server.serverDirectoryPath + "ClientProfiles/Client" + Integer.toString(userID) + "/";
-
             result = new Directory(clientDirectoryPath, userID);
 
             this.IDtoDirectory.put(userID, result);
@@ -51,8 +49,8 @@ public class Server implements Runnable {
 
     public synchronized int GetUserIDFromCredentials(Credentials credentials) {
         String password = this.userNameToPassword.get(credentials.userName);
-        if(password != null) {
-            if(password.equals(credentials.password)){
+        if (password != null) {
+            if (password.equals(credentials.password)){
                 return userNameToID.get(credentials.userName);
             }
         }
@@ -71,8 +69,8 @@ public class Server implements Runnable {
     public synchronized int RegisterUser(Credentials credentials) throws IOException {
         String password = this.userNameToPassword.get(credentials.userName);
         int ID = -1;
-        
-        if(password == null) {
+
+        if (password == null) {
             userNameToPassword.put(credentials.userName, credentials.password);
             ID = this.userCount++;
             userNameToID.put(credentials.userName, ID);
@@ -86,7 +84,7 @@ public class Server implements Runnable {
     }
 
     public static void main(String[] args) {
-        if(args.length != 2) return;
+        if (args.length != 2) return;
 
         new Thread(new Server(args[0], Integer.parseInt(args[1]))).start();
     }
@@ -97,13 +95,9 @@ public class Server implements Runnable {
 
     private void LoadServerData() {
         // Load User Credentials
-
         userCount = 0;
-
         BufferedReader reader = null;
-        
         String line;
-        
         try {
             reader = new BufferedReader(new FileReader(Server.serverDirectoryPath + "Credentials.txt"));
 
@@ -114,9 +108,9 @@ public class Server implements Runnable {
 
             while((line = reader.readLine()) != null) {
                 String credentials[] = line.trim().split(" ");
-                
-                if(credentials.length != 3) continue;
-                
+
+                if (credentials.length != 3) continue;
+
                 this.userNameToID.put(credentials[1], Integer.parseInt(credentials[0]));
                 this.IDToUserName.put(Integer.parseInt(credentials[0]), credentials[1]);
                 this.userNameToPassword.put(credentials[1], credentials[2]);
@@ -129,7 +123,7 @@ public class Server implements Runnable {
             throw new RuntimeException();
         } finally {
             try {
-                if(reader != null) {
+                if (reader != null) {
                     reader.close();
                 }
             } catch (IOException e) {
@@ -137,30 +131,28 @@ public class Server implements Runnable {
             }
         }
 
-        //for(String name : this.userNameToID.keySet()) {
-        //    System.out.println(new Credentials(name, this.userNameToPassword.get(name)));
-        //}
+        // for (String name : this.userNameToID.keySet()) {
+        //     System.out.println(new Credentials(name, this.userNameToPassword.get(name)));
+        // }
 
         // Load Social Graph
-
         reader = null;
-        
         try {
             reader = new BufferedReader(new FileReader(Server.serverDirectoryPath + "SocialGraph.txt"));
 
             this.socialGraph = new SocialGraph();
 
-            while((line = reader.readLine()) != null) {
+            while ((line = reader.readLine()) != null) {
                 String tokens[] = line.trim().split(" ");
-                
-                if(tokens.length == 0) continue;
+
+                if (tokens.length == 0) continue;
                 int userID = Integer.parseInt(tokens[0]);
                 int followersIDs[] = null;
 
-                if(tokens.length > 1) {
+                if (tokens.length > 1) {
                     followersIDs = new int[tokens.length - 1];
                     
-                    for(int i = 1; i < tokens.length; ++i) {
+                    for (int i = 1; i < tokens.length; ++i) {
                         followersIDs[i - 1] = Integer.parseInt(tokens[i]);
                     }
                 }
@@ -172,7 +164,7 @@ public class Server implements Runnable {
             throw new RuntimeException();
         } finally {
             try {
-                if(reader != null) {
+                if (reader != null) {
                     reader.close();
                 }
             } catch (IOException e) {
@@ -180,17 +172,16 @@ public class Server implements Runnable {
             }
         }
 
-        //for(int i = 0; i < userCount; ++i) {
-        //    SocialGraphNode userNode = this.socialGraph.GetUserNode(i);
-        //    if(userNode != null) {
-        //        System.out.println(userNode);
-        //    }
-        //}
+        // for (int i = 0; i < userCount; ++i) {
+        //     SocialGraphNode userNode = this.socialGraph.GetUserNode(i);
+        //     if(userNode != null) {
+        //         System.out.println(userNode);
+        //     }
+        // }
     }
 
     @Override
     public void run() {
-
         // Loads data into cache (memory)
         LoadServerData();
 
@@ -203,10 +194,8 @@ public class Server implements Runnable {
         }
 
         boolean isOpen = true;
-
         Socket connectionSocket;
-
-        while(isOpen) {
+        while (isOpen) {
             try {
                 connectionSocket = this.serverSocket.accept();
             } catch (IOException e) {

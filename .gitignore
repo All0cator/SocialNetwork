@@ -1,6 +1,7 @@
 *.class
 build/
 .gradle/
+.vscode/
 bin
 gradle/
 src/main/resources

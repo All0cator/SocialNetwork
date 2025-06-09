@@ -26,34 +26,33 @@ public class Directory {
     public synchronized ArrayList<String> ComputeUnsynchronizedFilePaths(FileData[] localDirectoryFileData) {
         ArrayList<String> filesPathsUnsynchronized = new ArrayList<String>();
 
-        if(localDirectoryFileData == null) return filesPathsUnsynchronized;
-        if(localDirectoryFileData.length == 0) return filesPathsUnsynchronized;
+        if (localDirectoryFileData == null) return filesPathsUnsynchronized;
+        if (localDirectoryFileData.length == 0) return filesPathsUnsynchronized;
 
         Set<FileData> localDirectoryFileDataSet = new HashSet<FileData>();
 
-
-        for(int i = 0; i < localDirectoryFileData.length; ++i) {
+        for (int i = 0; i < localDirectoryFileData.length; ++i) {
             localDirectoryFileDataSet.add(localDirectoryFileData[i]);
         }
 
         FileData[] remoteDirectoryFileDatas = ComputeFileDatas();
 
         for(FileData remoteFileData : remoteDirectoryFileDatas) {
-            if(!localDirectoryFileDataSet.contains(remoteFileData)) {
+            if (!localDirectoryFileDataSet.contains(remoteFileData)) {
                 filesPathsUnsynchronized.add(remoteFileData.filePath);
             } else {
                 FileData foundLocalFileData = new FileData("", new BigInteger("0"));
-                
-                // query all localFileDatas
-                // guaranteed to find localFileData mathcing remoteFileData
-                for(FileData localFileData : localDirectoryFileDataSet) {
-                    if(localFileData.equals(remoteFileData)) {
+
+                // Query all localFileDatas
+                // Guaranteed to find localFileData mathcing remoteFileData
+                for (FileData localFileData : localDirectoryFileDataSet) {
+                    if (localFileData.equals(remoteFileData)) {
                         foundLocalFileData = localFileData;
                         break;
                     }
                 }
-                // compare localFileData with remoteFileData checksums
-                if(!foundLocalFileData.checksum.equals(remoteFileData.checksum)) {
+                // Compare localFileData with remoteFileData checksums
+                if (!foundLocalFileData.checksum.equals(remoteFileData.checksum)) {
                     filesPathsUnsynchronized.add(foundLocalFileData.filePath);
                 }
             }
@@ -63,29 +62,28 @@ public class Directory {
     }
 
     public synchronized FileData[] ComputeFileDatas() {
-        
-        if(localFilePathToFile.size() == 0) return null;
-        
-        FileData[] fileDatas = new FileData[localFilePathToFile.size()];
 
+        if (localFilePathToFile.size() == 0) return null;
+
+        FileData[] fileDatas = new FileData[localFilePathToFile.size()];
         BigInteger[] checksums = new BigInteger[localFilePathToFile.size()];
         _File[] files = new _File[localFilePathToFile.size()];
 
-        // linearize hashmap
+        // Linearize hashmap
         int i = 0;
-        for(_File file : localFilePathToFile.values()) {
+        for (_File file : localFilePathToFile.values()) {
             files[i] = file;
             i++;
         }
 
-        for(int j = 0; j < files.length; ++j) {
+        for (int j = 0; j < files.length; ++j) {
             checksums[j] = files[j].GetChecksum();
         }
 
-        for(int j = 0; j < files.length; ++j) {
+        for (int j = 0; j < files.length; ++j) {
             fileDatas[j] = new FileData(files[j].GetLocalFilePath(), checksums[j]);
         }
-        
+
         return fileDatas;
     }
 
@@ -94,8 +92,8 @@ public class Directory {
     }
 
     public synchronized void SetFile(String fileName) {
-        if(this.localFilePathToFile.get(fileName) != null) {
-            // file already exists
+        if (this.localFilePathToFile.get(fileName) != null) {
+            // File already exists
             return;
         } 
 
@@ -172,14 +170,45 @@ public class Directory {
     }
 
     public synchronized void PrintDirectory() {
-
-        for(String localFilePath : this.localFilePathToFile.keySet()) {
+        for (String localFilePath : this.localFilePathToFile.keySet()) {
             System.out.println(this.rootPath + localFilePath);
         }
     }
 
-    //public synchronized void PrintHierarchy() {
-    //
-    //    rootFolder.Print();
-    //}
+    // public synchronized void PrintHierarchy() {
+    //     rootFolder.Print();
+    // }
+
+    public static void main(String[] args) {
+        System.out.println("Directory Test");
+
+        // Create a test directory
+        String testPath = "src/main/resources/TestDirectory/";
+        Directory testDir = new Directory(testPath, 999);
+
+        // Print initial directory contents
+        System.out.println("\nInitial directory contents:");
+        testDir.PrintDirectory();
+
+        // Create some files
+        System.out.println("\nAdding test files...");
+        testDir.SetFile("test1.txt");
+        testDir.SetFile("test2.txt");
+        testDir.SetFile("image.png");
+
+        // Print updated directory contents
+        System.out.println("\nUpdated directory contents:");
+        testDir.PrintDirectory();
+
+        // Test getting a file
+        System.out.println("\nGetting file test1.txt:");
+        _File file = testDir.GetFile("test1.txt");
+        if (file != null) {
+            System.out.println("File found: " + file.GetLocalFilePath());
+        } else {
+            System.out.println("File not found");
+        }
+
+        System.out.println("\nDirectory test completed");
+    }
 }

@@ -18,21 +18,20 @@ public class Credentials implements Serializable, Comparable {
 
     @Override
     public boolean equals(Object other) {
-        if(other == null) return false;
+        if (other == null) return false;
 
         return this.userName.equals(((Credentials)other).userName) && this.password.equals(((Credentials)other).password); 
     }
 
     @Override
     public int hashCode() {
-
         int code = 0;
 
-        if(this.userName != null) {
+        if (this.userName != null) {
             code += this.userName.hashCode();
         }
 
-        if(this.password != null) {
+        if (this.password != null) {
             code += 31 * this.password.hashCode();
         }
 
@@ -41,25 +40,21 @@ public class Credentials implements Serializable, Comparable {
 
     @Override
     public int compareTo(Object other) {
-
         Credentials o = (Credentials)other;
 
-        if(this.userName.compareTo(o.userName)  == -1) {
+        if (this.userName.compareTo(o.userName)  == -1) {
             return -1;
-        }
-        else if(this.userName.compareTo(o.userName) == 1) {
+        } else if(this.userName.compareTo(o.userName) == 1) {
             return 1;
         } else {
-            if(this.password.compareTo(o.password) == -1) {
+            if (this.password.compareTo(o.password) == -1) {
                 return -1;
-            }
-            else if(this.password.compareTo(o.password) == 1) {
+            } else if (this.password.compareTo(o.password) == 1) {
                 return 1;
             }
 
             return 0;
         }
-
     }
 
     @Override

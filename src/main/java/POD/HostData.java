@@ -1,6 +1,7 @@
 package POD;
+
 public class HostData {
-    
+
     public String hostIP;
     public int port;
 
@@ -8,7 +9,6 @@ public class HostData {
         this.hostIP = hostIP;
         this.port = port;
     }
-
 
     @Override
     public String toString() {
