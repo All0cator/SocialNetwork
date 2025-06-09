@@ -1,12 +1,6 @@
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.file.FileSystemNotFoundException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
@@ -14,7 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import POD.FileData;
 
-// Virtual File System
+/*
+ * Directory class represents a virtual file system for a user.
+ */
 public class Directory {
 
     private int clientID;

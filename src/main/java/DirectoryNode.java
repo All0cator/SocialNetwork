@@ -2,6 +2,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 
+/**
+ * DirectoryNode represents a directory in the file system.
+ * It can recursively list its contents and provide information about its structure.
+ */
 public class DirectoryNode {
 
     private String pathName;

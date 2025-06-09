@@ -3,8 +3,6 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -13,18 +11,13 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+
 import java.util.ArrayList;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
 
-import Messages.PayloadImage;
 
 public class _File {
     private String localFilePath;
@@ -32,41 +25,52 @@ public class _File {
     private boolean isDirty;
     private BigInteger checksum;
 
-    private Lock lock;
-    private Timer lockTimeoutTimer;
-    private ConcurrentLinkedQueue<Condition> conditions;
-    private ConcurrentLinkedQueue<Thread> threads;
+    // Lock for synchronizing access to the file
+    private final ReentrantReadWriteLock rwLock;
+    private final ReentrantReadWriteLock.ReadLock readLock;
+    private final ReentrantReadWriteLock.WriteLock writeLock;
+    
+    // Timeout for lock acquisition (in seconds)
+    private static final long LOCK_TIMEOUT = 30;
 
     public _File(String localFilePath, String globalFilePath) {
         this.localFilePath = localFilePath;
         this.globalFilePath = globalFilePath;
-        this.isDirty = true; // so that the first time we call get checksum it calculates it
+        this.isDirty = true;  // So that the first time we call get checksum it calculates it
 
-        this.lock = new ReentrantLock();
-        this.lockTimeoutTimer = new Timer();
-        this.conditions = new ConcurrentLinkedQueue<Condition>();
-        this.threads = new ConcurrentLinkedQueue<Thread>();
+        this.rwLock = new ReentrantReadWriteLock(true);
+        this.readLock = rwLock.readLock();
+        this.writeLock = rwLock.writeLock();
     }
 
-    private boolean AcquireLock() {
-        if(this.lock.tryLock()) {
-            System.out.println("");
-            return true;
-        } else {
-            this.threads.add(Thread.currentThread());
-            this.conditions.add(this.lock.newCondition());
-            this.lockTimeoutTimer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    ReleaseLock();
-                }
-            }, 25);
+    private boolean acquireReadLock() {
+        try {
+            return readLock.tryLock(LOCK_TIMEOUT, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return false;
         }
     }
 
-    private void ReleaseLock() {
+    private boolean acquireWriteLock() {
+        try {
+            return writeLock.tryLock(LOCK_TIMEOUT, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
 
+    private void releaseReadLock() {
+        if (rwLock.getReadHoldCount() > 0) {
+            readLock.unlock();
+        }
+    }
+
+    private void releaseWriteLock() {
+        if (rwLock.isWriteLockedByCurrentThread()) {
+            writeLock.unlock();
+        }
     }
 
     public String GetLocalFilePath() {
@@ -78,28 +82,36 @@ public class _File {
     }
 
     public synchronized BigInteger GetChecksum() {
-        if (isDirty) {
-            // Generate checksum
-            MessageDigest messageDigest;
-            byte[] fileBytes;
-            try {
-                messageDigest = MessageDigest.getInstance("SHA-256");
-                fileBytes = this.GetBytes();
-                messageDigest.update(fileBytes);
-                this.checksum = new BigInteger(messageDigest.digest());
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException();
-            } catch (IOException e) {
-                throw new RuntimeException();
-            }
-
-            isDirty = false;
+        if (!acquireWriteLock()) {
+            throw new RuntimeException("Failed to acquire write lock for checksum calculation");
         }
 
-        return this.checksum;
+        try {
+            if (isDirty) {
+                // Generate checksum
+                MessageDigest messageDigest;
+                byte[] fileBytes;
+                try {
+                    messageDigest = MessageDigest.getInstance("SHA-256");
+                    fileBytes = this.getBytes();
+                    messageDigest.update(fileBytes);
+                    this.checksum = new BigInteger(1, messageDigest.digest()); // Use 1 for positive values
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException("SHA-256 algorithm not available", e);
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to read file for checksum", e);
+                }
+
+                isDirty = false;
+            }
+
+            return this.checksum;
+        } finally {
+            releaseWriteLock();
+        }
     }
 
-    private synchronized byte[] GetBytes() throws IOException {
+    private synchronized byte[] getBytes() throws IOException {
         return Files.readAllBytes(Paths.get(this.globalFilePath));
     }
 
@@ -115,168 +127,199 @@ public class _File {
 
     // Returns either a String with \n characters for txt files and for images a byte[] containing the Image 
     public synchronized Object ReadFile() {
-        Object result = null;
-        String fileExtension = this.GetFileExtension();
-
-        if (fileExtension.equals("")) {
-            throw new RuntimeException();
+        if (!acquireReadLock()) {
+            throw new RuntimeException("Failed to acquire read lock");
         }
 
-        if (GetFileExtension().equals(".txt")) {
-            // It is a text file
-            result = "";
-            BufferedReader br = null;
-            try {
-                br = new BufferedReader(new FileReader(new File(this.globalFilePath)));
-                String line = null;
+        try {
+            Object result = null;
+            String fileExtension = this.GetFileExtension();
 
-                while ((line = br.readLine()) != null) {
-                    result += line + "\n";
-                }
+            if (fileExtension.equals("")) {
+                throw new RuntimeException("File has no extension");
+            }
 
-                int idx = ((String)result).lastIndexOf("\n");
-                int endIndex = idx;
+            if (".txt".equals(fileExtension)) {
+                // It is a text file
+                StringBuilder resultBuilder = new StringBuilder();
+                
+                try (BufferedReader br = new BufferedReader(new FileReader(new File(this.globalFilePath)))) {
+                    String line;
+                    boolean firstLine = true;
 
-                if (idx == -1) {
-                    endIndex = 0;
-                }
-
-                result = ((String)result).subSequence(0, endIndex);
-            } catch(IOException e) {
-                throw new RuntimeException();
-            } finally {
-                if (br != null) {
-                    try {
-                        br.close();
-                    } catch (IOException e) {
-                        throw new RuntimeException();
+                    while ((line = br.readLine()) != null) {
+                        if (!firstLine) {
+                            resultBuilder.append("\n");
+                        }
+                        resultBuilder.append(line);
+                        firstLine = false;
                     }
+
+                    result = resultBuilder.toString();
+                } catch(IOException e) {
+                    throw new RuntimeException("Failed to read text file: " + e.getMessage(), e);
+                }
+            } else {
+                // It is an image
+                try {
+                    BufferedImage bImage = ImageIO.read(new File(this.globalFilePath));
+                    if (bImage == null) {
+                        throw new RuntimeException("Failed to read image file - unsupported format or file doesn't exist");
+                    }
+                    
+                    ByteArrayOutputStream oStream = new ByteArrayOutputStream();
+                    String formatName = fileExtension.substring(1);
+                    
+                    if (!ImageIO.write(bImage, formatName, oStream)) {
+                        throw new RuntimeException("Failed to write image in format: " + formatName);
+                    }
+                    
+                    result = oStream.toByteArray();
+                } catch (IOException e) {
+                    System.err.println("Image file path: " + new File(this.globalFilePath).getAbsolutePath());
+                    throw new RuntimeException("Failed to read image file: " + e.getMessage(), e);
                 }
             }
-        } else {
-            // It is an image
-            try {
-                BufferedImage bImage = ImageIO.read(new File(this.globalFilePath));
-                ByteArrayOutputStream oStream = new ByteArrayOutputStream();
-                ImageIO.write(bImage, fileExtension.substring(1), oStream);
-                result = oStream.toByteArray();
-            } catch (IOException e) {
-                System.out.println(new File(this.globalFilePath).getAbsolutePath());
-                System.out.println(e.getMessage());
-                throw new RuntimeException();
-            }
-        }
 
-        return result;
+            return result;
+        } finally {
+            releaseReadLock();
+        }
     }
 
     public synchronized void WriteFile(Object content) {
-        String fileExtension = this.GetFileExtension();
-
-        if (fileExtension.equals("")) {
-            throw new RuntimeException();
+        if (!acquireWriteLock()) {
+            throw new RuntimeException("Failed to acquire write lock");
         }
 
-        if (fileExtension.equals(".txt")) {
-            String lines = (String)content;
-            FileWriter fwriter = null;
-            try {
-                fwriter = new FileWriter(new File(this.globalFilePath));
-                fwriter.write(lines);
-            } catch(IOException e) {
-                throw new RuntimeException();
-            } finally {
-                if (fwriter != null) {
-                    try {
-                        fwriter.close();
-                    } catch (IOException e) {
-                        throw new RuntimeException();
+        try {
+            String fileExtension = this.GetFileExtension();
+
+            if (fileExtension.equals("")) {
+                throw new RuntimeException("File has no extension");
+            }
+
+            if (".txt".equals(fileExtension)) {
+                String lines = (String)content;
+                
+                try (FileWriter fwriter = new FileWriter(new File(this.globalFilePath))) {
+                    fwriter.write(lines);
+                } catch(IOException e) {
+                    throw new RuntimeException("Failed to write text file: " + e.getMessage(), e);
+                }
+            } else {
+                // Is it an image
+                byte[] data = (byte[])content;
+                
+                try (ByteArrayInputStream bao = new ByteArrayInputStream(data)) {
+                    BufferedImage bImage = ImageIO.read(bao);
+                    if (bImage == null) {
+                        throw new RuntimeException("Failed to read image data");
                     }
+
+                    String formatName = fileExtension.substring(1);
+                    
+                    if (!ImageIO.write(bImage, formatName, new File(this.globalFilePath))) {
+                        throw new RuntimeException("Failed to write image in format: " + formatName);
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to write image file: " + e.getMessage(), e);
                 }
             }
-        } else {
-            // Is it an image
-            byte[] data = (byte[])content;
-            ByteArrayInputStream bao = new ByteArrayInputStream(data);
-            try {
-                BufferedImage bImage = ImageIO.read(bao);
 
-                // . in regex means any character we have to escape it
-                String[] tokens = this.GetFileExtension().split("\\.");
-
-                ImageIO.write(bImage, tokens[1], new File(this.globalFilePath));
-            } catch (IOException e) {
-                throw new RuntimeException();
-            }
+            this.isDirty = true;  // Mark as dirty after writing
+        } finally {
+            releaseWriteLock();
         }
     }
 
     public synchronized void AppendFile(ArrayList<String> lines) {
-        FileWriter fWriter = null;
-        try {
-            String firstLine = "\n";
-            if (new File(this.globalFilePath).length() == 0) {
-                firstLine = "";
-            }
+        if (!acquireWriteLock()) {
+            throw new RuntimeException("Failed to acquire write lock");
+        }
 
-            fWriter = new FileWriter(this.globalFilePath, true);
-            String newLine = firstLine;
-            for (int i = 0; i < lines.size(); ++i) {
-                fWriter.write(newLine + lines.get(i));
-                newLine = "\n";
-                this.isDirty = true;
-            }
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-            throw new RuntimeException();
-        } finally {
-            if (fWriter != null) {
-                try {
-                    fWriter.close();
-                } catch (IOException e) {
-                    throw new RuntimeException();
+        try {
+            try (FileWriter fWriter = new FileWriter(this.globalFilePath, true)) {
+                boolean isFirstWrite = new File(this.globalFilePath).length() == 0;
+                
+                for (int i = 0; i < lines.size(); ++i) {
+                    if (!isFirstWrite || i > 0) {
+                        fWriter.write("\n");
+                    }
+                    fWriter.write(lines.get(i));
+                    isFirstWrite = false;
                 }
+                
+                this.isDirty = true;
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to append to file: " + e.getMessage(), e);
             }
+        } finally {
+            releaseWriteLock();
         }
     }
 
     // Only for .txt files
     public synchronized void RemoveFile(Set<String> lines) {
-        FileWriter fWriter = null;
-        String[] fileLines = ((String)ReadFile()).split("\n");
+        if (!acquireWriteLock()) {
+            throw new RuntimeException("Failed to acquire write lock");
+        }
+
         try {
-            fWriter = new FileWriter(this.globalFilePath);
+            String fileContent = (String) ReadFileInternal();  // Internal method to avoid double locking
+            String[] fileLines = fileContent.split("\n");
+            
+            try (FileWriter fWriter = new FileWriter(this.globalFilePath)) {
+                boolean firstLineWritten = false;
 
-            if (fileLines != null) {
-                for (int i = 0; i < fileLines.length - 1; ++i) {
-
-                    if (!lines.contains(fileLines[i])) {
-                        String endline = "\n";
-                        if (lines.contains(fileLines[i + 1])) {
-                            endline = "";
+                for (String line : fileLines) {
+                    if (!lines.contains(line)) {
+                        if (firstLineWritten) {
+                            fWriter.write("\n");
                         }
-
-                        fWriter.write(fileLines[i] + endline);
-
+                        fWriter.write(line);
+                        firstLineWritten = true;
                         this.isDirty = true;
                     }
                 }
-
-                if (!lines.contains(fileLines[fileLines.length - 1])) {
-                    fWriter.write(fileLines[fileLines.length - 1]);
-                    this.isDirty = true;
-                }
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to remove lines from file: " + e.getMessage(), e);
             }
-        } catch (IOException e) {
-            throw new RuntimeException();
         } finally {
-            if (fWriter != null) {
-                try {
-                    fWriter.close();
-                } catch (IOException e) {
-                    throw new RuntimeException();
+            releaseWriteLock();
+        }
+    }
+
+    // Internal method for reading without acquiring lock (when lock is already held)
+    private Object ReadFileInternal() {
+        String fileExtension = this.GetFileExtension();
+
+        if (fileExtension.equals("")) {
+            throw new RuntimeException("File has no extension");
+        }
+
+        if (".txt".equals(fileExtension)) {
+            StringBuilder resultBuilder = new StringBuilder();
+            
+            try (BufferedReader br = new BufferedReader(new FileReader(new File(this.globalFilePath)))) {
+                String line;
+                boolean firstLine = true;
+
+                while ((line = br.readLine()) != null) {
+                    if (!firstLine) {
+                        resultBuilder.append("\n");
+                    }
+                    resultBuilder.append(line);
+                    firstLine = false;
                 }
+
+                return resultBuilder.toString();
+            } catch(IOException e) {
+                throw new RuntimeException("Failed to read text file: " + e.getMessage(), e);
             }
+        } else {
+            // Handle image files if needed
+            throw new RuntimeException("ReadFileInternal not implemented for image files");
         }
     }
 }

@@ -5,24 +5,20 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import POD.Credentials;
 import POD.HostData;
 
+
 public class Server implements Runnable {
 
     private static final String serverDirectoryPath = "src/main/resources/ServerDirectory/";
+    private ConcurrentHashMap<Integer, Directory> IDtoDirectory;  // Cache of user directories
 
     private HostData hostData;
 
     private ServerSocket serverSocket;
-
-    private ConcurrentHashMap<Integer, Directory> IDtoDirectory;  // cache of user directories
 
     private ConcurrentHashMap<String, String> userNameToPassword;
     private ConcurrentHashMap<String, Integer> userNameToID;
@@ -39,9 +35,13 @@ public class Server implements Runnable {
             if (this.socialGraph.GetUserNode(userID) == null) return null;
 
             String clientDirectoryPath = Server.serverDirectoryPath + "ClientProfiles/Client" + Integer.toString(userID) + "/";
-            result = new Directory(clientDirectoryPath, userID);
-
-            this.IDtoDirectory.put(userID, result);
+            try {
+                result = new Directory(clientDirectoryPath, userID);
+                this.IDtoDirectory.put(userID, result);
+            } catch (IOException e) {
+                System.err.println("Failed to create directory for user " + userID + ": " + e.getMessage());
+                return null;
+            }
         }
 
         return result;

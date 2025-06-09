@@ -1,5 +1,10 @@
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * SocialGraph class represents a social graph structure where users can follow each other.
+ * It maintains a mapping of user IDs to their corresponding SocialGraphNode objects.
+ * The class provides methods to add users and their followers, ensuring thread safety.
+ */
 public class SocialGraph {
 
     // HashMap provides fast query of a node with a specific userID

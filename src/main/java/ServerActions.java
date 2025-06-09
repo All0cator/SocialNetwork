@@ -1,18 +1,12 @@
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.security.PKCS12Attribute;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-
-import javax.imageio.ImageIO;
-import javax.print.attribute.standard.PDLOverrideSupported;
 
 import Messages.Message;
 import Messages.MessageType;
@@ -23,8 +17,8 @@ import Messages.PayloadDownload;
 import Messages.PayloadText;
 import Messages.PayloadUpload;
 import Messages.PayloadUserID;
-import POD.FileData;
 import POD.UserAccountData;
+
 
 public class ServerActions implements Runnable {
 
@@ -234,8 +228,9 @@ public class ServerActions implements Runnable {
 
                             if (userNotifications != null) {
                                 for (int i = 0; i < userNotifications.length; ++i) {
-                                    if (userNotifications[i].contains("follow request"))
-                                    pNotifications.text += userNotifications[i];
+                                    if (userNotifications[i].contains("follow request")) {
+                                        pNotifications.text += userNotifications[i] + "\n";
+                                    }
                                 }
                             }
                         }
@@ -330,6 +325,18 @@ public class ServerActions implements Runnable {
                         // 3-way handshake
                         System.out.println("Syn");
                         Message syn = (Message)this.iStream.readObject();
+
+                        // Validate the SYN message
+                        if (syn.type != MessageType.SYN) {
+                            System.err.println("Expected SYN message but received: " + syn.type);
+                            // Handle error appropriately
+                            Message errorMessage = new Message();
+                            errorMessage.type = MessageType.ERROR;
+                            this.oStream.writeObject(errorMessage);
+                            this.oStream.flush();
+                            break;
+                        }
+
                         Message synAck = new Message();
                         synAck.type = MessageType.SYN_ACK;
 
@@ -375,6 +382,17 @@ public class ServerActions implements Runnable {
                         System.out.println("ACK Image Parameters");
                         // Wait for ACK to start the Image transmission
                         Message response3 = (Message)this.iStream.readObject();
+
+                        // Validate the ACK message
+                        if (response3.type != MessageType.ACK) {
+                            System.err.println("Expected ACK message but received: " + response3.type);
+                            // Handle error appropriately
+                            Message errorMessage = new Message();
+                            errorMessage.type = MessageType.ERROR;
+                            this.oStream.writeObject(errorMessage);
+                            this.oStream.flush();
+                            break;
+                        }
 
                         int i = 0;
                         int serializedBytesOffset = 0;

@@ -2,6 +2,10 @@ package POD;
 
 import java.io.Serializable;
 
+/**
+ * UserAccountData class represents a user account with an ID and a username.
+ * It implements Serializable to allow instances to be serialized for storage or transmission.
+ */
 public class UserAccountData implements Serializable {
     public int ID;
     public String userName; 

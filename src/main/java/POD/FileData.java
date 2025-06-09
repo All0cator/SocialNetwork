@@ -1,10 +1,13 @@
 package POD;
 
-import java.io.File;
 import java.io.Serializable;
 import java.math.BigInteger;
 
-public class FileData implements Serializable, Comparable {
+/**
+ * FileData class represents a file with its path and checksum.
+ * It implements Serializable for object serialization and Comparable for sorting.
+ */
+public class FileData implements Serializable, Comparable<FileData> {
     public String filePath;
     public BigInteger checksum;
 
@@ -36,16 +39,14 @@ public class FileData implements Serializable, Comparable {
     }
 
     @Override
-    public int compareTo(Object other) {
-        FileData o = (FileData)other;
+    public int compareTo(FileData other) {
+        if (other == null) return 1;
 
-        if (this.filePath.compareTo(o.filePath) == -1) {
-            return -1;
-        } else if (this.filePath.compareTo(o.filePath) == 1) {
-            return 1;
-        } else {
-            return 0;
-        }
+        if (this.filePath == null && other.filePath == null) return 0;
+        if (this.filePath == null) return -1;
+        if (other.filePath == null) return 1;
+
+        return this.filePath.compareTo(other.filePath);
     }
 
     @Override

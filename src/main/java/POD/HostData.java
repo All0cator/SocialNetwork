@@ -1,5 +1,9 @@
 package POD;
 
+/**
+ * HostData class represents the data of a host in the network.
+ * It contains the host's IP address and port number.
+ */
 public class HostData {
 
     public String hostIP;

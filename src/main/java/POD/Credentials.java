@@ -2,7 +2,11 @@ package POD;
 
 import java.io.Serializable;
 
-public class Credentials implements Serializable, Comparable { 
+/**
+ * Credentials class represents user credentials with a username and password.
+ * It implements Serializable for object serialization and Comparable for sorting.
+ */
+public class Credentials implements Serializable, Comparable<Credentials> { 
     public String userName;
     public String password;
 
@@ -39,22 +43,15 @@ public class Credentials implements Serializable, Comparable {
     }
 
     @Override
-    public int compareTo(Object other) {
-        Credentials o = (Credentials)other;
+    public int compareTo(Credentials other) {
+        if (other == null) return 1;
 
-        if (this.userName.compareTo(o.userName)  == -1) {
-            return -1;
-        } else if(this.userName.compareTo(o.userName) == 1) {
-            return 1;
-        } else {
-            if (this.password.compareTo(o.password) == -1) {
-                return -1;
-            } else if (this.password.compareTo(o.password) == 1) {
-                return 1;
-            }
-
-            return 0;
+        int userNameComparison = this.userName.compareTo(other.userName);
+        if (userNameComparison != 0) {
+            return userNameComparison;
         }
+
+        return this.password.compareTo(other.password);
     }
 
     @Override

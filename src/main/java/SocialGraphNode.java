@@ -2,6 +2,11 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * SocialGraphNode represents a node in a social graph, which can be a user or an entity.
+ * Each node has a unique ID and maintains sets of follower and following nodes.
+ * It provides methods to add and remove followers and followings, as well as to retrieve their IDs.
+ */
 public class SocialGraphNode {
 
     private Integer ID;
