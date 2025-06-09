@@ -1,5 +1,6 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -48,10 +49,12 @@ public class Server implements Runnable {
     }
 
     public synchronized int GetUserIDFromCredentials(Credentials credentials) {
-        String password = this.userNameToPassword.get(credentials.userName);
+        // Convert username to lowercase for case-insensitive comparison
+        String userName = credentials.userName.toLowerCase();
+        String password = this.userNameToPassword.get(userName);
         if (password != null) {
             if (password.equals(credentials.password)){
-                return userNameToID.get(credentials.userName);
+                return userNameToID.get(userName);
             }
         }
 
@@ -67,20 +70,33 @@ public class Server implements Runnable {
     }
 
     public synchronized int RegisterUser(Credentials credentials) throws IOException {
-        String password = this.userNameToPassword.get(credentials.userName);
-        int ID = -1;
+        // Convert username to lowercase for case-insensitive comparison
+        String userName = credentials.userName.toLowerCase();
+        String password = this.userNameToPassword.get(userName);
+        int ID = 0;
 
-        if (password == null) {
-            userNameToPassword.put(credentials.userName, credentials.password);
-            ID = this.userCount++;
-            userNameToID.put(credentials.userName, ID);
-            IDToUserName.put(ID, credentials.userName);
+        if (password != null) {
+            return -1;  // Username already exists
+        } else {
+            // Register new user with lowercase username
+            userNameToPassword.put(userName, credentials.password);
+            userNameToID.put(userName, ID);
+            IDToUserName.put(ID, userName);
+
+            // Create a new directory for the user
             this.IDtoDirectory.put(ID, new Directory(Server.serverDirectoryPath + "ClientProfiles/Client" + Integer.toString(ID) + "/", ID));
-        
-            this.socialGraph.AddUser(ID, null);
-        }
 
-        return ID;
+            // Add user to social graph
+            this.socialGraph.AddUser(ID, null);
+
+            // Save credentials to file
+            FileWriter fWriter = new FileWriter(Server.serverDirectoryPath + "Credentials.txt", true);
+            fWriter.write(Integer.toString(this.userCount) + " " + userName + " " + credentials.password + "\n");
+            fWriter.close();
+
+            ID = this.userCount++;
+            return ID;
+        }
     }
 
     public static void main(String[] args) {

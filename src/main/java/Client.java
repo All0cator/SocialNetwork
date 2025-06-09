@@ -71,30 +71,9 @@ public class Client implements Runnable {
         System.out.println("| 1) Login                      |");
         System.out.println("| 2) Signup                     |");
         System.out.println("+-------------------------------+");
-        System.out.println("\n+-------------------------------+");
-        System.out.println("|      SOCIAL NETWORK LOGIN     |");
-        System.out.println("|-------------------------------|");
-        System.out.println("| 0) Print Available Options    |");
-        System.out.println("| 1) Login                      |");
-        System.out.println("| 2) Signup                     |");
-        System.out.println("+-------------------------------+");
     }
 
     private void PrintUserOptions() {
-        System.out.println("\n+-------------------------------+");
-        System.out.println("|         USER MENU             |");
-        System.out.println("|-------------------------------|");
-        System.out.println("| 0) Print Available Options    |");
-        System.out.println("| 1) Logout                     |");
-        System.out.println("| 2) Accept Follow Request      |");
-        System.out.println("| 3) Follow Request             |");
-        System.out.println("| 4) Unfollow                   |");
-        System.out.println("| 5) View Notifications (" + this.notifications.size() + ")     |");
-        System.out.println("| 6) Access Profile             |");
-        System.out.println("| 7) Upload                     |");
-        System.out.println("| 8) Download Photo             |");
-        System.out.println("| 9) Refresh                    |");
-        System.out.println("+-------------------------------+");
         System.out.println("\n+-------------------------------+");
         System.out.println("|         USER MENU             |");
         System.out.println("|-------------------------------|");
@@ -199,9 +178,13 @@ public class Client implements Runnable {
                             System.out.println("✓ Login successful! Welcome client " + Integer.toString(this.ID));
 
                             EnterApplication();
+
+                            // After log out we want to print the login screen options again
+                            PrintLoginScreenOptions();
                         } else {
                             // Wrong credentials
                             System.out.println("✗ Login failed: Incorrect username or password");
+                            PrintLoginScreenOptions();
                         }
                     }
                     break;
@@ -236,19 +219,29 @@ public class Client implements Runnable {
                             System.out.println("✓ Account created successfully! Welcome client " + Integer.toString(this.ID));
 
                             EnterApplication();
+
+                            // After log out we want to print the login screen options again
+                            PrintLoginScreenOptions();
                         } else {
                             System.out.println("✗ Signup failed: Username already exists");
+                            PrintLoginScreenOptions();
                         }
                     }
                     break;
                     default:
+                        System.out.println("Invalid option. Please choose 0, 1, or 2.");
+                        PrintLoginScreenOptions();
                         break;
                 }
             }
         } catch (IOException e) {
+            cleanup();
             throw new RuntimeException();
         } catch (ClassNotFoundException e) {
+            cleanup();
             throw new RuntimeException();
+        } finally {
+            cleanup();  // Ensure cleanup is called on exit
         }
     }
 
@@ -279,7 +272,6 @@ public class Client implements Runnable {
                     break;
                     case 1:
                     {
-                        PrintLoginScreenOptions();
                         return;
                     }
                     case 2:
@@ -964,13 +956,9 @@ public class Client implements Runnable {
                 }
             }
         } catch (IOException e) {
-            cleanup();
             throw new RuntimeException();
         } catch (ClassNotFoundException e) {
-            cleanup();
             throw new RuntimeException();
-        } finally {
-            cleanup();  // Ensure cleanup is called on exit
         }
     }
 
