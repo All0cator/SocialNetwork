@@ -63,31 +63,39 @@ public class Client implements Runnable {
     }
 
     private void PrintLoginScreenOptions() {
-        System.out.println("0) Print Available Options");
-        System.out.println("1) Login");
-        System.out.println("2) Signup");
+        System.out.println("\n╔═══════════════════════════════╗");
+        System.out.println("║      SOCIAL NETWORK LOGIN     ║");
+        System.out.println("╠═══════════════════════════════╣");
+        System.out.println("║ 0) Print Available Options    ║");
+        System.out.println("║ 1) Login                      ║");
+        System.out.println("║ 2) Signup                     ║");
+        System.out.println("╚═══════════════════════════════╝");
     }
 
     private void PrintUserOptions() {
-        System.out.println("0) Print Available Options");
-        System.out.println("1) Logout");
-        System.out.println("2) Accept Follow Request");
-        System.out.println("3) Follow Request");
-        System.out.println("4) Unfollow");
-        System.out.println("5) View Notifications (" + this.notifications.size() + ")");
-        System.out.println("6) Access Profile");
-        System.out.println("7) Upload");
-        System.out.println("8) Download Photo");
-        System.out.println("9) Refresh");
+        System.out.println("\n╔═══════════════════════════════╗");
+        System.out.println("║         USER MENU             ║");
+        System.out.println("╠═══════════════════════════════╣");
+        System.out.println("║ 0) Print Available Options    ║");
+        System.out.println("║ 1) Logout                     ║");
+        System.out.println("║ 2) Accept Follow Request      ║");
+        System.out.println("║ 3) Follow Request             ║");
+        System.out.println("║ 4) Unfollow                   ║");
+        System.out.println("║ 5) View Notifications (" + this.notifications.size() + ")     ║");
+        System.out.println("║ 6) Access Profile             ║");
+        System.out.println("║ 7) Upload                     ║");
+        System.out.println("║ 8) Download Photo             ║");
+        System.out.println("║ 9) Refresh                    ║");
+        System.out.println("╚═══════════════════════════════╝");
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws NumberFormatException, IOException {
         if(args.length != 4) return;
 
         new Thread(new Client(args[0], Integer.parseInt(args[1]), args[2], Integer.parseInt(args[3]))).start();
     }
 
-    public Client(String serverHostIP, int serverPort, String hostIP, int port) {
+    public Client(String serverHostIP, int serverPort, String hostIP, int port) throws IOException {
         this.serverHostData = new HostData(serverHostIP, serverPort);
         this.hostData = new HostData(hostIP, port);
         this.ID = -1;
@@ -706,10 +714,10 @@ public class Client implements Runnable {
                         PayloadText pText = (PayloadText)((Message)this.iStream.readObject()).payload;
 
                         String[] newNotifications = pText.text.split("\n");
+                        this.notifications.clear();
 
                         if(newNotifications != null) {
                             
-                            this.notifications.clear();
                             for(String notification : newNotifications) {
                                 this.notifications.add(notification);
                             }

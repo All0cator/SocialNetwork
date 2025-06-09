@@ -129,18 +129,35 @@ public class Directory {
         return file;
     }
 
-    public Directory(String root, int clientID) {
+    public Directory(String root, int clientID) throws IOException {
         this.clientID = clientID;
         this.rootPath = root;
         CreateHierarchy(root);
 
         HashSet<String> filePaths = new HashSet<String>();
-
+        
+        
         rootFolder.GetFilePaths(filePaths, this.rootPath);
         this.localFilePathToFile = new ConcurrentHashMap<String, _File>();
-
+        
         for(String filePath : filePaths) {
             this.localFilePathToFile.put(filePath, new _File(filePath, this.rootPath + filePath));
+        }
+        
+        if(clientID == -1) return; 
+
+        File rootFolder = new File(root);
+        File profileFile = new File(this.rootPath + this.GetLocalProfileName());
+        File notificationFile = new File(this.rootPath + this.GetLocalNotificationsName());
+        
+        rootFolder.mkdir();
+        
+        if(profileFile.createNewFile()) {
+            this.localFilePathToFile.put(this.GetLocalProfileName(), new _File(this.GetLocalProfileName(), this.rootPath + this.GetLocalProfileName()));
+        }
+
+        if(notificationFile.createNewFile()) {
+            this.localFilePathToFile.put(this.GetLocalNotificationsName(), new _File(this.GetLocalNotificationsName(), this.rootPath + this.GetLocalNotificationsName()));
         }
 
         //PrintDirectory();

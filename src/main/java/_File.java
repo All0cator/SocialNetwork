@@ -15,6 +15,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.imageio.ImageIO;
 
@@ -26,10 +32,41 @@ public class _File {
     private boolean isDirty;
     private BigInteger checksum;
 
+    private Lock lock;
+    private Timer lockTimeoutTimer;
+    private ConcurrentLinkedQueue<Condition> conditions;
+    private ConcurrentLinkedQueue<Thread> threads;
+
     public _File(String localFilePath, String globalFilePath) {
         this.localFilePath = localFilePath;
         this.globalFilePath = globalFilePath;
         this.isDirty = true; // so that the first time we call get checksum it calculates it
+
+        this.lock = new ReentrantLock();
+        this.lockTimeoutTimer = new Timer();
+        this.conditions = new ConcurrentLinkedQueue<Condition>();
+        this.threads = new ConcurrentLinkedQueue<Thread>();
+    }
+
+    private boolean AcquireLock() {
+        if(this.lock.tryLock()) {
+            System.out.println("");
+            return true;
+        } else {
+            this.threads.add(Thread.currentThread());
+            this.conditions.add(this.lock.newCondition());
+            this.lockTimeoutTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    ReleaseLock();
+                }
+            }, 25);
+            return false;
+        }
+    }
+
+    private void ReleaseLock() {
+
     }
 
     public String GetLocalFilePath() {

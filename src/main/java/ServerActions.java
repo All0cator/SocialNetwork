@@ -50,6 +50,10 @@ public class ServerActions implements Runnable {
     public void run() {
         try {
 
+            //PayloadUserID pUser = (PayloadUserID)((Message)this.iStream.readObject()).payload;
+
+            //Thread.currentThread().setName(Integer.toString(pUser.clientID));
+
             while(!this.connectionSocket.isClosed()) {
                 Message connectionMessage = (Message)iStream.readObject();
                 

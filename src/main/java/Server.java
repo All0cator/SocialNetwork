@@ -32,7 +32,7 @@ public class Server implements Runnable {
     private SocialGraph socialGraph;
 
     // avoid stale reads with synchronized
-    public synchronized Directory GetDirectory(int userID) {
+    public synchronized Directory GetDirectory(int userID) throws IOException {
         Directory result = this.IDtoDirectory.get(userID);
 
         if(result == null) {
@@ -68,7 +68,7 @@ public class Server implements Runnable {
         return this.IDToUserName.get(userID);
     }
 
-    public synchronized int RegisterUser(Credentials credentials) {
+    public synchronized int RegisterUser(Credentials credentials) throws IOException {
         String password = this.userNameToPassword.get(credentials.userName);
         int ID = -1;
         
@@ -78,6 +78,8 @@ public class Server implements Runnable {
             userNameToID.put(credentials.userName, ID);
             IDToUserName.put(ID, credentials.userName);
             this.IDtoDirectory.put(ID, new Directory(Server.serverDirectoryPath + "ClientProfiles/Client" + Integer.toString(ID) + "/", ID));
+        
+            this.socialGraph.AddUser(ID, null);
         }
 
         return ID;
@@ -118,6 +120,8 @@ public class Server implements Runnable {
                 this.userNameToID.put(credentials[1], Integer.parseInt(credentials[0]));
                 this.IDToUserName.put(Integer.parseInt(credentials[0]), credentials[1]);
                 this.userNameToPassword.put(credentials[1], credentials[2]);
+                this.IDtoDirectory.put((Integer.parseInt(credentials[0])), new Directory(Server.serverDirectoryPath + "ClientProfiles/Client" + credentials[0] + "/", Integer.parseInt(credentials[0])));
+
                 userCount++;
             }
 
