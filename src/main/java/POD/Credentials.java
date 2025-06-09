@@ -16,7 +16,7 @@ public class Credentials implements Serializable, Comparable<Credentials> {
     }
 
     public Credentials(String userName, String password) {
-        this.userName = userName;
+        this.userName = userName != null ? userName.toLowerCase() : "";
         this.password = password;
     }
 

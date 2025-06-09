@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
+import Messages.Language;
 import Messages.Message;
 import Messages.MessageType;
 import Messages.PayloadClientGraph;
@@ -262,15 +263,31 @@ public class ServerActions implements Runnable {
                         // Write to the correct directory append to clientProfile also
                         Directory clientDirectory = this.server.GetDirectory(pUpload.clientID);
 
-                        // Client directory exists
+                        // Save image
                         clientDirectory.SetFile(pUpload.imageName);
                         clientDirectory.GetFile(pUpload.imageName).WriteFile(pUpload.imageData);
-                        clientDirectory.SetFile(pUpload.textName);
-                        clientDirectory.GetFile(pUpload.textName).WriteFile(pUpload.acompanyingText);
 
+                        // Save multilingual text with proper formatting
+                        String textContent = "";
+
+                        if (pUpload.hasText(Language.ENGLISH) && pUpload.hasText(Language.GREEK)) {
+                            // Both languages available
+                            textContent = pUpload.getFormattedText(Language.BOTH);
+                        } else if (pUpload.hasText(Language.ENGLISH)) {
+                            // English only
+                            textContent = "[EN]\n" + pUpload.getText(Language.ENGLISH);
+                        } else if (pUpload.hasText(Language.GREEK)) {
+                            // Greek only
+                            textContent = "[EL]\n" + pUpload.getText(Language.GREEK);
+                        }
+
+                        // Save the text file
+                        clientDirectory.SetFile(pUpload.textName);
+                        clientDirectory.GetFile(pUpload.textName).WriteFile(textContent);
+
+                        // Update profile
                         ArrayList<String> appendList = new ArrayList<String>();
                         appendList.add(String.format("%d posted %s", pUpload.clientID, pUpload.imageName));
-
                         clientDirectory.GetFile(clientDirectory.GetLocalProfileName()).AppendFile(appendList);
                     }
                     break;
@@ -438,12 +455,22 @@ public class ServerActions implements Runnable {
                         System.out.println("Finished!");
 
                         PayloadText pText = new PayloadText();
-                        pText.text = null;
                         String[] tokens = photoName.split("\\.");
-                        String accompanyingTextFileName = tokens[0] + ".txt";
-                        _File accompanyingTextFile = this.server.GetDirectory(directoryClientID).GetFile(accompanyingTextFileName);
-                        if(accompanyingTextFile != null) {
-                            pText.text = (String)accompanyingTextFile.ReadFile();
+                        String textFileName = tokens[0] + ".txt";
+                        _File textFile = null;
+
+                        try {
+                            textFile = this.server.GetDirectory(directoryClientID).GetFile(textFileName);
+                            if (textFile != null) {
+                                String fullText = (String)textFile.ReadFile();
+
+                                // Send the full text - client will handle language preference
+                                pText.text = fullText;
+                            } else {
+                                pText.text = null;
+                            }
+                        } catch (Exception e) {
+                            pText.text = null;
                         }
 
                         this.oStream.writeObject(pText);
@@ -451,11 +478,11 @@ public class ServerActions implements Runnable {
 
                         // Write image and accompaying text to Server Directory also of the client
                         Directory srcUserDirectory = this.server.GetDirectory(srcClientID);
-                        srcUserDirectory.SetFile(accompanyingTextFileName);
+                        srcUserDirectory.SetFile(textFileName);
 
-                        if (accompanyingTextFile != null) {
-                            srcUserDirectory.SetFile(accompanyingTextFileName);
-                            srcUserDirectory.GetFile(accompanyingTextFileName).WriteFile(pText.text);
+                        if (textFile != null) {
+                            srcUserDirectory.SetFile(textFileName);
+                            srcUserDirectory.GetFile(textFileName).WriteFile(pText.text);
                         }
 
                         // Photo file is not null

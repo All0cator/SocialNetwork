@@ -1,21 +1,15 @@
-import java.awt.image.BufferedImage;
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.FileWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Scanner;
 import java.util.Set;
 
-import javax.imageio.ImageIO;
-
-import java.io.File;
-
+import Messages.Language;
 import Messages.Message;
 import Messages.MessageType;
 import Messages.PayloadClientGraph;
@@ -35,7 +29,6 @@ public class Client implements Runnable {
     private static Scanner sc = new Scanner(System.in);
     private volatile boolean isShuttingDown = false;
 
-    private Directory testDirectory;
     private Directory clientDirectory;
 
     // Cache of Client from server refreshes when connecting to server and when refreshing option selected
@@ -103,7 +96,6 @@ public class Client implements Runnable {
         this.followerDatas = new ArrayList<UserAccountData>();
         this.followingDatas = new ArrayList<UserAccountData>();
         this.notifications = new ArrayList<String>();
-        this.testDirectory = new Directory("src/main/resources/ClientDirectories/", -1);
     }
 
     @Override 
@@ -246,15 +238,22 @@ public class Client implements Runnable {
     }
 
     public void EnterApplication() {
-        PrintUserOptions();
-
         boolean isRunning = true;
+
         try {
-            while (isRunning) {
+            while (isRunning && !isShuttingDown) {
+                PrintUserOptions();
+
                 int option;
                 String input = sc.nextLine().trim();
                 try {
                     option = input.isEmpty() ? 0 : Integer.parseInt(input);
+
+                    if (option < 0 || option > 9) {
+                        System.out.println("Invalid option. Please choose a number between 0 and 9.");
+                        PrintUserOptions();
+                        continue;
+                    }
                 } catch (NumberFormatException e) {
                     System.out.println("Invalid input. Please enter a number (0-9).");
                     PrintUserOptions();
@@ -288,7 +287,7 @@ public class Client implements Runnable {
 
                         if (followRequests.size() == 0) {
                             System.out.println("You have no pending follow requests.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -303,17 +302,17 @@ public class Client implements Runnable {
                             option2 = Integer.parseInt(sc.nextLine());
                             if (option2 < -1 || option2 >= followRequests.size()) {
                                 System.out.println("Invalid selection.");
-                                System.out.println("---------------------------------------");
+                                System.out.println("-----------------------------------");
                                 break;
                             }
                         } catch (NumberFormatException e) {
                             System.out.println("Invalid input. Please enter a number.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
                         if (option2 == -1) {
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -331,17 +330,17 @@ public class Client implements Runnable {
                             option3 = Integer.parseInt(sc.nextLine());
                             if (option3 < -1 || option3 > 2) {
                                 System.out.println("Invalid selection.");
-                                System.out.println("---------------------------------------");
+                                System.out.println("-----------------------------------");
                                 break;
                             }
                         } catch(NumberFormatException e) {
                             System.out.println("Invalid input. Please enter a number.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
                         if (option3 == -1) {
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -388,7 +387,7 @@ public class Client implements Runnable {
                         }
 
                         System.out.println("✓ Request processed successfully!");
-                        System.out.println("---------------------------------------");
+                        System.out.println("-----------------------------------");
                     }
                     break;
                     case 3:
@@ -411,24 +410,24 @@ public class Client implements Runnable {
 
                             if (followUserID < -1) {
                                 System.out.println("✗ Invalid user ID. Please enter a non-negative number.");
-                                System.out.println("---------------------------------------");
+                                System.out.println("-----------------------------------");
                                 break;
                             }
                         } catch(NumberFormatException e) {
                             System.out.println("✗ Invalid input. Please enter a number.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
                         if (followUserID == -1) {
                             System.out.println("Follow request cancelled.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
                         if (followUserID == this.ID) {
                             System.out.println("✗ You cannot follow yourself.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -439,7 +438,7 @@ public class Client implements Runnable {
                         this.oStream.flush();
 
                         System.out.println("✓ Follow request sent successfully!");
-                        System.out.println("---------------------------------------");
+                        System.out.println("-----------------------------------");
                     }
                     break;
                     case 4:
@@ -449,7 +448,7 @@ public class Client implements Runnable {
 
                         if (this.followingDatas.size() == 0) {
                             System.out.println("You are not following anyone.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -467,18 +466,18 @@ public class Client implements Runnable {
 
                             if (option2 < -1 || option2 >= this.followingDatas.size()) {
                                 System.out.println("✗ Invalid selection.");
-                                System.out.println("---------------------------------------");
+                                System.out.println("-----------------------------------");
                                 break;
                             }
                         } catch(NumberFormatException e) {
                             System.out.println("✗ Invalid input. Please enter a number.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
                         if (option2 == -1) {
                             System.out.println("Unfollow cancelled.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -510,7 +509,7 @@ public class Client implements Runnable {
                         }
 
                         System.out.println("✓ You have unfollowed " + unfollowUsername);
-                        System.out.println("---------------------------------------");
+                        System.out.println("-----------------------------------");
                     }
                     break;
                     case 5:
@@ -526,7 +525,7 @@ public class Client implements Runnable {
                             }
                         }
 
-                        System.out.println("---------------------------------------");
+                        System.out.println("-----------------------------------");
                     }
                     break;
                     case 6:
@@ -536,7 +535,7 @@ public class Client implements Runnable {
 
                         if (this.followingDatas.size() == 0) {
                             System.out.println("You are not following anyone.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -551,17 +550,17 @@ public class Client implements Runnable {
                             choice2 = Integer.parseInt(sc.nextLine());
                             if (choice2 < -1 || choice2 >= this.followingDatas.size()) {
                                 System.out.println("Invalid selection.");
-                                System.out.println("---------------------------------------");
+                                System.out.println("-----------------------------------");
                                 break;
                             }
                         } catch(NumberFormatException e) {
                             System.out.println("Invalid input. Please enter a number.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
                         if (choice2 == -1) {
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -582,17 +581,17 @@ public class Client implements Runnable {
                             profileChoice = Integer.parseInt(sc.nextLine());
                             if(profileChoice < -1 || profileChoice >= this.followingDatas.size()) {
                                 System.out.println("Invalid selection.");
-                                System.out.println("---------------------------------------");
+                                System.out.println("-----------------------------------");
                                 break;
                             }
                         } catch(NumberFormatException e) {
                             System.out.println("Invalid input. Please enter a number.");
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
                         if (profileChoice == -1 || profileChoice == this.ID) {
-                            System.out.println("---------------------------------------");
+                            System.out.println("-----------------------------------");
                             break;
                         }
 
@@ -606,43 +605,129 @@ public class Client implements Runnable {
                         PayloadText pText = (PayloadText)this.iStream.readObject();
 
                         System.out.println(pText.text);
-                        System.out.println("---------------------------------------");
+                        System.out.println("-----------------------------------");
                     }
                     break;
                     case 7:
                     {
-                        // Upload TestImage on local repository
-                        this.clientDirectory.SetFile("TestImage.png");
-                        this.clientDirectory.SetFile("TestImage.txt");
-
-                        _File imageFileTest = this.testDirectory.GetFile("TestImage.png");
-                        _File textFileTest = this.testDirectory.GetFile("TestImage.txt");
-
-                        _File imageFile = this.clientDirectory.GetFile("TestImage.png");
-                        _File textFile = this.clientDirectory.GetFile("TestImage.txt");
-
-                        imageFile.WriteFile(imageFileTest.ReadFile());
-                        textFile.WriteFile(textFileTest.ReadFile());
-
-                        ArrayList<String> appendList = new ArrayList<String>();
-                        appendList.add(String.format("%d posted %s", this.ID, "TestImage.png"));
-
-                        this.clientDirectory.GetFile(this.clientDirectory.GetLocalProfileName()).AppendFile(appendList);
-
-                        // Upload TestImage on remote repository
-                        Message synchronizationMessage = new Message();
-                        synchronizationMessage.type = MessageType.UPLOAD;
+                        // Upload
+                        System.out.println("\n------------- UPLOAD -------------");
+                        Message uploadMessage = new Message();
+                        uploadMessage.type = MessageType.UPLOAD;
                         PayloadUpload pUpload = new PayloadUpload();
-                        synchronizationMessage.payload = pUpload;
-
+                        uploadMessage.payload = pUpload;
                         pUpload.clientID = this.ID;
-                        pUpload.imageName = "TestImage.png";
-                        pUpload.imageData = (byte[])imageFileTest.ReadFile();
-                        pUpload.textName = "TestImage.txt";
-                        pUpload.acompanyingText = (String)textFileTest.ReadFile();
 
-                        this.oStream.writeObject(synchronizationMessage);
+                        System.out.print("Image name to upload: ");
+                        String imageName = sc.nextLine().trim();
+                        if (!imageName.endsWith(".png")) {
+                            imageName += ".png";
+                        }
+                        pUpload.imageName = imageName;
+
+                        // Load image data
+                        try {
+                            // First check if file exists in client directory
+                            _File imageFile = this.clientDirectory.GetFile(pUpload.imageName);
+
+                            // Check if the file actually exists on disk
+                            File diskFile = new File(this.clientDirectoryPath + pUpload.imageName);
+                            if (!diskFile.exists()) {
+                                System.out.println("✗ Error: Image file '" + pUpload.imageName + "' not found in your directory.");
+                                System.out.println("   Please make sure the file exists in: " + this.clientDirectoryPath);
+                                System.out.println("-----------------------------------");
+                                break;
+                            }
+
+                            pUpload.imageData = (byte[])imageFile.ReadFile();
+
+                            if (pUpload.imageData == null || pUpload.imageData.length == 0) {
+                                System.out.println("✗ Error: Image file is empty or corrupted: " + pUpload.imageName);
+                                System.out.println("-----------------------------------");
+                                break;
+                            }
+                        } catch (Exception e) {
+                            System.out.println("✗ Error: Could not read image file: " + pUpload.imageName);
+                            System.out.println("-----------------------------------");
+                            break;
+                        }
+
+                        // Get text name
+                        String photoName = pUpload.imageName;
+                        String[] tokens = photoName.split("\\.");
+                        pUpload.textName = tokens[0];
+                        if (!pUpload.textName.endsWith(".txt")) {
+                            pUpload.textName += ".txt";
+                        }
+
+                        // Enhanced multilingual text input
+                        System.out.println("\nText input options:");
+                        System.out.println("1) English only");
+                        System.out.println("2) Greek only");
+                        System.out.println("3) Both languages");
+                        System.out.print("Choice (1-3): ");
+
+                        String textOption = sc.nextLine().trim();
+
+                        switch (textOption) {
+                            case "1":
+                                // English only
+                                System.out.print("English text: ");
+                                String englishText = sc.nextLine().trim();
+                                if (!englishText.isEmpty()) {
+                                    pUpload.addText(Language.ENGLISH, englishText);
+                                    pUpload.acompanyingText = englishText;
+                                } else {
+                                    System.out.println("✗ Error: Text is required!");
+                                    System.out.println("-----------------------------------");
+                                    continue;
+                                }
+                                break;
+                    
+                            case "2":
+                                // Greek only
+                                System.out.print("Greek text: ");
+                                String greekText = sc.nextLine().trim();
+                                if (!greekText.isEmpty()) {
+                                    pUpload.addText(Language.GREEK, greekText);
+                                    pUpload.acompanyingText = greekText;
+                                } else {
+                                    System.out.println("✗ Error: Text is required!");
+                                    System.out.println("-----------------------------------");
+                                    continue;
+                                }
+                                break;
+                    
+                            case "3":
+                                // Both languages
+                                System.out.print("English text: ");
+                                String englishBoth = sc.nextLine().trim();
+                                System.out.print("Greek text: ");
+                                String greekBoth = sc.nextLine().trim();
+                    
+                                if (englishBoth.isEmpty() || greekBoth.isEmpty()) {
+                                    System.out.println("✗ Error: Both languages are required when selecting 'Both'!");
+                                    System.out.println("-----------------------------------");
+                                    continue;
+                                }
+                    
+                                pUpload.addText(Language.ENGLISH, englishBoth);
+                                pUpload.addText(Language.GREEK, greekBoth);
+                                pUpload.acompanyingText = pUpload.getFormattedText(Language.BOTH);
+                                break;
+                    
+                            default:
+                                System.out.println("✗ Error: Invalid option!");
+                                System.out.println("-----------------------------------");
+                                continue;
+                        }
+
+                        System.out.println("Uploading...");
+                        this.oStream.writeObject(uploadMessage);
                         this.oStream.flush();
+
+                        System.out.println("✓ Upload complete!");
+                        System.out.println("-----------------------------------");
                     }
                     break;
                     case 8:
@@ -656,194 +741,168 @@ public class Client implements Runnable {
 
                         System.out.println("\n----------- PHOTO DOWNLOAD -----------");
                         System.out.print("Photo name to download: ");
-                        pDownload.name = sc.nextLine();
+                        pDownload.name = sc.nextLine().trim();
+                        if (!pDownload.name.endsWith(".png")) {
+                            pDownload.name += ".png";
+                        }
+
+                        // Language preference selection
+                        System.out.println("\nText language preference:");
+                        System.out.println("1) English only");
+                        System.out.println("2) Greek only");
+                        System.out.println("3) Both languages (mixed)");
+                        System.out.print("Choice (1-3): ");
+
+                        String langChoice = sc.nextLine().trim();
+                        switch (langChoice) {
+                            case "1":
+                                pDownload.preferredLanguage = Language.ENGLISH;
+                                break;
+                            case "2":
+                                pDownload.preferredLanguage = Language.GREEK;
+                                break;
+                            case "3":
+                                pDownload.preferredLanguage = Language.BOTH;
+                                break;
+                            default:
+                                pDownload.preferredLanguage = Language.BOTH;
+                                System.out.println("Invalid choice, defaulting to both languages.");
+                                break;
+                        }
 
                         System.out.println("\nSending download request...");
                         this.oStream.writeObject(downloadMessage);
                         this.oStream.flush();
 
+                        String photoName = pDownload.name;
+
                         // Image to download and client that has it
                         System.out.println("Receiving response...");
-                        Message imageSearchResult = (Message)this.iStream.readObject();
-                        if (imageSearchResult.type == MessageType.ERROR) {
-                            System.out.println("\n✗ Photo not found!");
-                            System.out.println("---------------------------------------");
-                            break;
-                        }
+                        Message response = (Message)this.iStream.readObject();
 
-                        // Else image search is successfull
-                        PayloadDownload pReply = (PayloadDownload)imageSearchResult.payload;
-                        int clientID = pReply.clientID;
-                        String photoName = pReply.name;
+                        if (response.type == MessageType.DOWNLOAD_PHOTO) {
+                            PayloadDownload responsePayload = (PayloadDownload)response.payload;
+                            System.out.println("Found photo in client " + responsePayload.clientID + "'s directory");
 
-                        // 3 way handshake
-                        Message message1 = new Message();
-                        message1.type = MessageType.SYN;
-                        message1.payload = null;
+                            // 3-way handshake and image download (existing code)
+                            Message syn = new Message();
+                            syn.type = MessageType.SYN;
+                            long t1 = System.currentTimeMillis();
 
-                        System.out.println("Syn");
-                        long t1 = System.currentTimeMillis();
-                        this.oStream.writeObject(message1);
-                        this.oStream.flush();
-
-                        System.out.println("SynAck");
-                        Message response1 = (Message)this.iStream.readObject();
-
-                        // Validate the SYN_ACK message
-                        if (response1.type != MessageType.SYN_ACK) {
-                            System.err.println("Expected SYN_ACK message but received: " + response1.type);
-                            System.out.println("✗ Download failed due to protocol error");
-                            System.out.println("---------------------------------------");
-                            break;
-                        }
-
-                        long t2 = System.currentTimeMillis();
-                        int timeout = (int)(t2 - t1);
-
-                        Message message2 = new Message();
-                        message2.type = MessageType.ACK;
-                        PayloadDownload pDownload2 = new PayloadDownload();
-                        message2.payload = pDownload2;
-                        pDownload2.clientID = clientID;
-                        pDownload2.name = photoName;
-                        pDownload2.timeout = 5000;  //timeout; // Round trip time is not consistent
-
-                        System.out.println("Ack");
-                        this.oStream.writeObject(message2);
-                        this.oStream.flush();
-
-                        System.out.println("Receiving Image Parameters...");
-                        // Send 3rd message wait for timeout
-                        Message response2 = (Message)this.iStream.readObject();
-
-                        // Validate the response message
-                        if (response2.type != MessageType.SYN_ACK) {
-                            System.err.println("Expected SYN_ACK message but received: " + response2.type);
-                            System.out.println("✗ Download failed due to protocol error");
-                            System.out.println("---------------------------------------");
-                            break;
-                        }
-
-                        // Retransmission
-                        System.out.println("Retransmitting Image Parameters...");
-                        Message response3 = (Message)this.iStream.readObject();
-                        int imageBytes = (int)response3.payload;
-
-                        Message message3 = new Message();
-                        message3.type = MessageType.ACK;
-                        message3.payload = null;
-
-                        System.out.println("ACK Image Parameters");
-                        this.oStream.writeObject(message3);
-                        this.oStream.flush();
-
-                        int i = 0;
-                        // Break image into 10 pieces
-                        int ne = (int)((float)imageBytes / 10.0f);
-                        int neFinalPacket = (int)(((float)imageBytes / 10.0f) + ((float)(_ceil((float)imageBytes / 10.0f)) - (float)imageBytes / 10.0f));
-
-                        ArrayList<Byte> reconstructedImage = new ArrayList<Byte>();
-
-                        System.out.println(ne);
-                        System.out.println(neFinalPacket);
-                        while (i < 10) {                            
-                            // Send parameters
-                            CommandAPDU commandAPDU = new CommandAPDU();
-                            commandAPDU.nc = 0;
-                            commandAPDU.ne = (short)ne;
-
-                            if (i == 9) {
-                                // 10th message final packet
-                                commandAPDU.ne = (short)neFinalPacket;    
-                            }
-
-                            if (i == 2) {
-                                // 5th message of client to the server
-                                // Send also timeout
-
-                                ByteArrayOutputStream bOS = new ByteArrayOutputStream();
-                                ObjectOutputStream oS = new ObjectOutputStream(bOS);
-
-                                oS.writeInt(timeout);
-                                oS.flush();
-
-                                commandAPDU.commandData = bOS.toByteArray();
-                                commandAPDU.nc = (short)commandAPDU.commandData.length;
-                            } else if (i == 3) {
-                                // 6th message of client to the server
-                                try {
-                                    Thread.sleep(10000);
-                                    CommandAPDU commandAPDU2 = new CommandAPDU();
-                                    commandAPDU2.ne = (short)ne;
-                                    commandAPDU2.nc = 0;
-                                    commandAPDU2.commandData = null;
-                                    
-                                    System.out.println("Sending CommandAPDU...");
-                                    this.oStream.writeObject(commandAPDU2);
-                                    this.oStream.flush();
-                                    // Send 2 packets handle double ACK in server side
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-
-                            System.out.println("Sending CommandAPDU...");
-                            t1 = System.currentTimeMillis();
-                            this.oStream.writeObject(commandAPDU);
+                            System.out.println("Syn");
+                            this.oStream.writeObject(syn);
                             this.oStream.flush();
 
-                            System.out.println("Reading ResponseAPDU...");
-                            ResponseAPDU responseAPDU = (ResponseAPDU)this.iStream.readObject();
-                            t2 = System.currentTimeMillis();
-                            timeout = (int)(t2 - t1);
+                            System.out.println("SynAck");
+                            Message response1 = (Message)this.iStream.readObject();
+                            long t2 = System.currentTimeMillis();
 
-                            // Success
-                            if (responseAPDU.sw1sw2 == 0x9000) {
-                                for (int j = 0; j < commandAPDU.ne; ++j) {
-                                    reconstructedImage.add(responseAPDU.responseData[j]);
+                            // Validate the SYN_ACK message
+                            if (response1.type != MessageType.SYN_ACK) {
+                                System.err.println("Expected SYN_ACK message but received: " + response1.type);
+                                System.out.println("✗ Download failed due to protocol error");
+                                System.out.println("-----------------------------------");
+                                break;
+                            }
+
+                            int timeout = (int)(t2 - t1);
+
+                            Message ack = new Message();
+                            ack.type = MessageType.ACK;
+                            ack.payload = timeout;
+
+                            System.out.println("Ack with timeout");
+                            this.oStream.writeObject(ack);
+                            this.oStream.flush();
+
+                            System.out.println("Receiving Image Parameters...");
+                            Message response2 = (Message)this.iStream.readObject();
+
+                            // Validate the response message
+                            if (response2.type != MessageType.SYN_ACK) {
+                                System.err.println("Expected SYN_ACK message but received: " + response2.type);
+                                System.out.println("✗ Download failed due to protocol error");
+                                System.out.println("-----------------------------------");
+                                break;
+                            }
+
+                            System.out.println("ACK Image Parameters");
+                            Message response3 = (Message)this.iStream.readObject();
+
+                            // Validate the ACK message
+                            if (response3.type != MessageType.ACK) {
+                                System.err.println("Expected ACK message but received: " + response3.type);
+                                System.out.println("✗ Download failed due to protocol error");
+                                System.out.println("-----------------------------------");
+                                break;
+                            }
+
+                            int imageBytes = (int)response3.payload;
+
+                            // Download image data
+                            ArrayList<Byte> reconstructedImage = new ArrayList<Byte>();
+                            int packetsToReceive = _ceil((float)imageBytes / 1024);
+
+                            for (int i = 0; i < packetsToReceive; ++i) {
+                                try {
+                                    this.iStream.readObject();
+                                    byte[] packet = (byte[])this.iStream.readObject();
+
+                                    for (byte b : packet) {
+                                        reconstructedImage.add(b);
+                                    }
+                                } catch (SocketTimeoutException e) {
+                                    // Retransmission logic
+                                    Message retransmissionMessage = new Message();
+                                    retransmissionMessage.type = MessageType.SYN;
+                                    retransmissionMessage.payload = i;
+
+                                    this.oStream.writeObject(retransmissionMessage);
+                                    this.oStream.flush();
+
+                                    byte[] packet = (byte[])this.iStream.readObject();
+
+                                    for (byte b : packet) {
+                                        reconstructedImage.add(b);
+                                    }
                                 }
                             }
-                            i++;
-                        }
 
-                        System.out.println("Finished!");
-                        PayloadText textFile = (PayloadText)this.iStream.readObject();
-
-                        if (textFile.text == null) {
-                            System.out.println("There is no accompanying text with the photo requested");
-                        } else {
-                            BufferedWriter fw = null;
-
-                            try {
-                                fw = new BufferedWriter(new FileWriter(new File(this.clientDirectoryPath + photoName)));
-                                fw.write(textFile.text);
-                            } catch(IOException e) {
-                                throw new RuntimeException();
-                            } finally {
-                                if(fw != null) {
-                                    fw.close();
+                            // Save image
+                            if (reconstructedImage.size() > 0) {
+                                Byte[] imageData = reconstructedImage.toArray(new Byte[0]);
+                                byte[] primitiveImageData = new byte[imageData.length];
+                                for (int i = 0; i < imageData.length; i++) {
+                                    primitiveImageData[i] = imageData[i];
                                 }
+
+                                photoName = pDownload.name;
+                                _File imageFile = this.clientDirectory.GetFile(photoName);
+                                imageFile.WriteFile(primitiveImageData);
+                                System.out.println("✓ Image downloaded: " + photoName);
                             }
+
+                            // Download accompanying text
+                            PayloadText textFile = (PayloadText)this.iStream.readObject();
+
+                            if (textFile.text == null || textFile.text.trim().isEmpty()) {
+                                System.out.println("No accompanying text available for this photo");
+                            } else {
+                                String displayText = extractTextForLanguage(textFile.text, pDownload.preferredLanguage);
+
+                                System.out.println("\n--- ACCOMPANYING TEXT ---");
+                                System.out.println(displayText);
+                                System.out.println("-------------------------");
+
+                                // Save text file
+                                String textFileName = photoName.substring(0, photoName.lastIndexOf('.')) + ".txt";
+                                _File textFileLocal = this.clientDirectory.GetFile(textFileName);
+                                textFileLocal.WriteFile(displayText);
+                                System.out.println("✓ Text saved to: " + textFileName);
+                            }
+
+                            System.out.println("✓ Download complete!");
                         }
-
-                        Byte[] imageData = reconstructedImage.toArray(new Byte[0]);
-                        byte[] imageData2 = new byte[imageData.length];
-                        // memcpy
-                        for (int j = 0; j < imageData.length; ++j) {
-                            imageData2[j] = imageData[j];
-                        }
-
-                        ByteArrayInputStream bao = new ByteArrayInputStream(imageData2);
-                        BufferedImage bImage = ImageIO.read(bao);
-
-                        // . in regex means any character we have to escape it
-                        String[] tokens = photoName.split("\\.");
-
-                        ImageIO.write(bImage, tokens[1], new File(this.clientDirectoryPath + photoName));
-
-                        System.out.println("\n✓ Download complete!");
-                        System.out.println("Photo saved to: " + this.clientDirectoryPath + photoName);
-                        System.out.println("---------------------------------------");
                     }
                     break;
                     case 9:
@@ -947,8 +1006,6 @@ public class Client implements Runnable {
                             this.clientDirectory.SetFile(filePath);
                             this.clientDirectory.GetFile(filePath).WriteFile(contents);;
                         }
-
-                        PrintUserOptions();
                     }
                     break;
                     default:
@@ -960,6 +1017,66 @@ public class Client implements Runnable {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException();
         }
+    }
+
+    // Helper method to extract text based on language preference
+    private String extractTextForLanguage(String fullText, Language preferredLanguage) {
+        if (fullText == null || fullText.trim().isEmpty()) return "";
+
+        // If no language tags, return as-is
+        if (!fullText.contains("[EN]") && !fullText.contains("[EL]")) {
+            return fullText;
+        }
+
+        if (preferredLanguage == Language.BOTH) {
+            // Format all languages with clear separators
+            return formatAllLanguages(fullText);
+        }
+
+        // Extract specific language
+        String[] lines = fullText.split("\n");
+        StringBuilder result = new StringBuilder();
+        boolean inTargetLanguage = false;
+        String targetTag = (preferredLanguage == Language.ENGLISH) ? "[EN]" : "[EL]";
+
+        for (String line : lines) {
+            if (line.trim().equals("[EN]") || line.trim().equals("[EL]")) {
+                inTargetLanguage = line.trim().equals(targetTag);
+            } else if (inTargetLanguage) {
+                if (result.length() > 0) result.append("\n");
+                result.append(line);
+            }
+        }
+
+        // If target language not found, return formatted all languages
+        if (result.length() == 0) {
+            return formatAllLanguages(fullText) + "\n[Note: " + preferredLanguage.name() + " version not available]";
+        }
+
+        return result.toString();
+    }
+
+    private String formatAllLanguages(String fullText) {
+        if (!fullText.contains("[EN]") && !fullText.contains("[EL]")) {
+            return fullText;
+        }
+
+        String[] lines = fullText.split("\n");
+        StringBuilder result = new StringBuilder();
+
+        for (String line : lines) {
+            if (line.trim().equals("[EN]")) {
+                if (result.length() > 0) result.append("\n");
+                result.append("=== ENGLISH ===\n");
+            } else if (line.trim().equals("[EL]")) {
+                if (result.length() > 0) result.append("\n");
+                result.append("=== GREEK ===\n");
+            } else {
+                result.append(line).append("\n");
+            }
+        }
+
+        return result.toString().trim();
     }
 
     int _ceil(float x) {
