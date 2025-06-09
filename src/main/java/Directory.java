@@ -178,37 +178,4 @@ public class Directory {
     // public synchronized void PrintHierarchy() {
     //     rootFolder.Print();
     // }
-
-    public static void main(String[] args) {
-        System.out.println("Directory Test");
-
-        // Create a test directory
-        String testPath = "src/main/resources/TestDirectory/";
-        Directory testDir = new Directory(testPath, 999);
-
-        // Print initial directory contents
-        System.out.println("\nInitial directory contents:");
-        testDir.PrintDirectory();
-
-        // Create some files
-        System.out.println("\nAdding test files...");
-        testDir.SetFile("test1.txt");
-        testDir.SetFile("test2.txt");
-        testDir.SetFile("image.png");
-
-        // Print updated directory contents
-        System.out.println("\nUpdated directory contents:");
-        testDir.PrintDirectory();
-
-        // Test getting a file
-        System.out.println("\nGetting file test1.txt:");
-        _File file = testDir.GetFile("test1.txt");
-        if (file != null) {
-            System.out.println("File found: " + file.GetLocalFilePath());
-        } else {
-            System.out.println("File not found");
-        }
-
-        System.out.println("\nDirectory test completed");
-    }
 }
