@@ -19,8 +19,15 @@ public class FileData implements Serializable, Comparable<FileData> {
     @Override
     public boolean equals(Object other) {
         if (other == null) return false;
+        if (!(other instanceof FileData)) return false;
 
-        return this.filePath.equals(((FileData)other).filePath); 
+        FileData otherFileData = (FileData) other;
+
+        // For synchronization purposes, files are the same if they have the same path
+        // Checksum comparison happens separately in ComputeUnsynchronizedFilePaths
+        return this.filePath != null ? 
+            this.filePath.equals(otherFileData.filePath) : 
+            otherFileData.filePath == null;
     }
 
     @Override

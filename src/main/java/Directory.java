@@ -2,7 +2,9 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,34 +24,42 @@ public class Directory {
     public synchronized ArrayList<String> ComputeUnsynchronizedFilePaths(FileData[] localDirectoryFileData) {
         ArrayList<String> filesPathsUnsynchronized = new ArrayList<String>();
 
-        if (localDirectoryFileData == null) return filesPathsUnsynchronized;
-        if (localDirectoryFileData.length == 0) return filesPathsUnsynchronized;
-
-        Set<FileData> localDirectoryFileDataSet = new HashSet<FileData>();
-
-        for (int i = 0; i < localDirectoryFileData.length; ++i) {
-            localDirectoryFileDataSet.add(localDirectoryFileData[i]);
+        // Get server files
+        FileData[] remoteDirectoryFileDatas = ComputeFileDatas();
+        
+        if (remoteDirectoryFileDatas == null || remoteDirectoryFileDatas.length == 0) {
+            return filesPathsUnsynchronized;  // No files on server
         }
 
-        FileData[] remoteDirectoryFileDatas = ComputeFileDatas();
+        // Handle case where client has no files
+        if (localDirectoryFileData == null || localDirectoryFileData.length == 0) {
+            // Client has no files, download everything from server
+            for (FileData remoteFileData : remoteDirectoryFileDatas) {
+                filesPathsUnsynchronized.add(remoteFileData.filePath);
+            }
+            return filesPathsUnsynchronized;
+        }
 
-        for(FileData remoteFileData : remoteDirectoryFileDatas) {
-            if (!localDirectoryFileDataSet.contains(remoteFileData)) {
+        // Create a map of local files for faster lookup
+        Set<String> localFilePaths = new HashSet<String>();
+        Map<String, BigInteger> localFileChecksums = new HashMap<String, BigInteger>();
+
+        for (FileData localFile : localDirectoryFileData) {
+            localFilePaths.add(localFile.filePath);
+            localFileChecksums.put(localFile.filePath, localFile.checksum);
+        }
+
+        // Check each server file
+        for (FileData remoteFileData : remoteDirectoryFileDatas) {
+            if (!localFilePaths.contains(remoteFileData.filePath)) {
+                // File doesn't exist locally, need to download
                 filesPathsUnsynchronized.add(remoteFileData.filePath);
             } else {
-                FileData foundLocalFileData = new FileData("", new BigInteger("0"));
-
-                // Query all localFileDatas
-                // Guaranteed to find localFileData mathcing remoteFileData
-                for (FileData localFileData : localDirectoryFileDataSet) {
-                    if (localFileData.equals(remoteFileData)) {
-                        foundLocalFileData = localFileData;
-                        break;
-                    }
-                }
-                // Compare localFileData with remoteFileData checksums
-                if (!foundLocalFileData.checksum.equals(remoteFileData.checksum)) {
-                    filesPathsUnsynchronized.add(foundLocalFileData.filePath);
+                // File exists locally, check if content is different
+                BigInteger localChecksum = localFileChecksums.get(remoteFileData.filePath);
+                if (localChecksum == null || !localChecksum.equals(remoteFileData.checksum)) {
+                    // Content is different, need to download
+                    filesPathsUnsynchronized.add(remoteFileData.filePath);
                 }
             }
         }

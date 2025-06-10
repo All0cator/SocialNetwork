@@ -124,11 +124,38 @@ public class ServerActions implements Runnable {
                     {
                         PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
 
+                        // System.out.println("DEBUG: Processing follow request from " + pRequest.clientIDSource + 
+                        //                   " to " + pRequest.clientIDDestination);
+
                         // Follow request goes to the targetNode's directory Others_31clientID
                         Directory targetDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
-                        ArrayList<String> appendLines = new ArrayList<String>();
-                        appendLines.add(String.format("%d follow request", pRequest.clientIDSource));
-                        targetDirectory.GetFile(targetDirectory.GetLocalNotificationsName()).AppendFile(appendLines);
+
+                        if (targetDirectory != null) {
+                            // Ensure the Others file exists
+                            String othersFileName = targetDirectory.GetLocalNotificationsName();
+                            targetDirectory.SetFile(othersFileName);
+
+                            ArrayList<String> appendLines = new ArrayList<String>();
+                            appendLines.add(String.format("%d follow request", pRequest.clientIDSource));
+
+                            _File othersFile = targetDirectory.GetFile(othersFileName);
+                            if (othersFile != null) {
+                                othersFile.AppendFile(appendLines);
+                                // System.out.println("DEBUG: Follow request successfully added to server directory");
+
+                                // Send a follow request message back to the client
+                                Message responseMessage = new Message();
+                                responseMessage.type = MessageType.FOLLOW_REQUEST;
+                                responseMessage.payload = null;
+
+                                this.oStream.writeObject(responseMessage);
+                                this.oStream.flush();
+                            } else {
+                                System.err.println("Could not create/access Others file for user " + pRequest.clientIDDestination);
+                            }
+                        } else {
+                            System.err.println("Target directory not found for user " + pRequest.clientIDDestination);
+                        }
                     }
                     break;
                     case UNFOLLOW:
@@ -209,32 +236,46 @@ public class ServerActions implements Runnable {
                         PayloadText pNotifications = new PayloadText();
                         responseMessage.payload = pNotifications;
 
-                        pNotifications.text = "";
+                        StringBuilder notificationText = new StringBuilder();
 
                         if (userNode != null) {
+                            // Get posts from people this user follows
                             Set<Integer> followingsIDs = userNode.GetFollowingIDs();
 
                             for (Integer ID : followingsIDs) {
                                 Directory followingDirectory = this.server.GetDirectory(ID);
-
                                 String notifications = followingDirectory.GetNotifications();
 
-                                if (notifications.length() == 0) continue;
-
-                                pNotifications.text += followingDirectory.GetNotifications() + "\n";
+                                if (notifications != null && notifications.trim().length() > 0) {
+                                    String[] lines = notifications.split("\n");
+                                    for (String line : lines) {
+                                        if (line.trim().contains("posted")) {
+                                            notificationText.append(line.trim()).append("\n");
+                                        }
+                                    }
+                                }
                             }
 
+                            // Get user's own notifications (including follow requests) - READ FROM SERVER DIRECTORY
                             Directory userDirectory = this.server.GetDirectory(userID);
-                            String[] userNotifications = userDirectory.GetNotifications().split("\n");
+                            String userNotifications = userDirectory.GetNotifications();
 
-                            if (userNotifications != null) {
-                                for (int i = 0; i < userNotifications.length; ++i) {
-                                    if (userNotifications[i].contains("follow request")) {
-                                        pNotifications.text += userNotifications[i] + "\n";
+                            // System.out.println("DEBUG: User " + userID + " notifications content: " + userNotifications);
+
+                            if (userNotifications != null && userNotifications.trim().length() > 0) {
+                                String[] userNotificationLines = userNotifications.split("\n");
+
+                                for (String notification : userNotificationLines) {
+                                    if (notification != null && notification.trim().length() > 0) {
+                                        // Add all notifications (posts and follow requests)
+                                        notificationText.append(notification.trim()).append("\n");
                                     }
                                 }
                             }
                         }
+
+                        pNotifications.text = notificationText.toString();
+                        // System.out.println("DEBUG: Sending notifications to client " + userID + ": " + pNotifications.text);
 
                         this.oStream.writeObject(responseMessage);
                         this.oStream.flush();
@@ -279,16 +320,45 @@ public class ServerActions implements Runnable {
                         } else if (pUpload.hasText(Language.GREEK)) {
                             // Greek only
                             textContent = "[EL]\n" + pUpload.getText(Language.GREEK);
+                        } else {
+                            textContent = pUpload.acompanyingText != null ? pUpload.acompanyingText : "";
                         }
 
                         // Save the text file
                         clientDirectory.SetFile(pUpload.textName);
                         clientDirectory.GetFile(pUpload.textName).WriteFile(textContent);
 
-                        // Update profile
+                        // Update profile of the uploader
                         ArrayList<String> appendList = new ArrayList<String>();
                         appendList.add(String.format("%d posted %s", pUpload.clientID, pUpload.imageName));
                         clientDirectory.GetFile(clientDirectory.GetLocalProfileName()).AppendFile(appendList);
+
+                        // Record this post in the Others_31clientID.txt files of all followers
+                        SocialGraphNode uploaderNode = this.server.GetSocialGraph().GetUserNode(pUpload.clientID);
+                        if (uploaderNode != null) {
+                            Set<Integer> followerIDs = uploaderNode.GetFollowerIDs();
+
+                            for (Integer followerID : followerIDs) {
+                                try {
+                                    Directory followerDirectory = this.server.GetDirectory(followerID);
+                                    if (followerDirectory != null) {
+                                        // Add the post notification to follower's Others file
+                                        ArrayList<String> followerNotification = new ArrayList<String>();
+                                        followerNotification.add(String.format("%d posted %s", pUpload.clientID, pUpload.imageName));
+
+                                        _File followerOthersFile = followerDirectory.GetFile(followerDirectory.GetLocalNotificationsName());
+                                        if (followerOthersFile != null) {
+                                            followerOthersFile.AppendFile(followerNotification);
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    System.err.println("Error updating follower " + followerID + " notifications: " + e.getMessage());
+                                    // Continue with other followers even if one fails
+                                }
+                            }
+
+                            System.out.println("Post recorded for " + followerIDs.size() + " followers");
+                        }
                     }
                     break;
                     case DOWNLOAD_PHOTO:

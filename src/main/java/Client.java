@@ -892,7 +892,7 @@ public class Client implements Runnable {
 
                                 System.out.println("\n--- ACCOMPANYING TEXT ---");
                                 System.out.println(displayText);
-                                System.out.println("-------------------------");
+                                System.out.println("-----------------------------------");
 
                                 // Save text file
                                 String textFileName = photoName.substring(0, photoName.lastIndexOf('.')) + ".txt";
@@ -902,12 +902,17 @@ public class Client implements Runnable {
                             }
 
                             System.out.println("✓ Download complete!");
+                        } else if (response.type == MessageType.ERROR) {
+                            System.out.println("✗ Photo not found or doesn't have text in the preferred language");
+                            System.out.println("-----------------------------------");
                         }
                     }
                     break;
                     case 9:
                     {
                         // Refresh
+                        System.out.println("\n------------- REFRESH -------------");
+
                         // Get the social graph
                         Message clientGraphMessage = new Message();
                         clientGraphMessage.type = MessageType.GET_CLIENT_GRAPH;
@@ -939,7 +944,6 @@ public class Client implements Runnable {
                         this.oStream.flush();
 
                         // Populate notifications
-
                         PayloadText pText = (PayloadText)((Message)this.iStream.readObject()).payload;
 
                         String[] newNotifications = pText.text.split("\n");
@@ -1006,6 +1010,10 @@ public class Client implements Runnable {
                             this.clientDirectory.SetFile(filePath);
                             this.clientDirectory.GetFile(filePath).WriteFile(contents);;
                         }
+
+                        System.out.println("✓ Refresh complete!");
+                        System.out.println("Updated notifications: " + this.notifications.size());
+                        System.out.println("-----------------------------------");
                     }
                     break;
                     default:
