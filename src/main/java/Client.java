@@ -96,6 +96,17 @@ public class Client implements Runnable {
         this.followerDatas = new ArrayList<UserAccountData>();
         this.followingDatas = new ArrayList<UserAccountData>();
         this.notifications = new ArrayList<String>();
+
+        // Establish connection immediately and keep it open
+        try {
+            this.serverConnection = new Socket(serverHostIP, serverPort);
+            this.oStream = new ObjectOutputStream(this.serverConnection.getOutputStream());
+            this.iStream = new ObjectInputStream(this.serverConnection.getInputStream());
+            System.out.println("DEBUG: Connection established to server");
+        } catch (IOException e) {
+            System.err.println("ERROR: Failed to connect to server: " + e.getMessage());
+            throw e;
+        }
     }
 
     @Override 
@@ -160,6 +171,19 @@ public class Client implements Runnable {
                         this.oStream.flush();
 
                         serverResponse = (Message)this.iStream.readObject();
+
+                        if (serverResponse == null) {
+                            System.err.println("✗ Server response error: No response received");
+                            PrintLoginScreenOptions();
+                            break;
+                        }
+
+                        if (serverResponse.payload == null) {
+                            System.err.println("✗ Server response error: Invalid response format");
+                            System.err.println("DEBUG: Response type: " + serverResponse.type);
+                            PrintLoginScreenOptions();
+                            break;
+                        }
 
                         int clientID = ((PayloadUserID)serverResponse.payload).clientID;
                         if (clientID != -1) {
@@ -242,6 +266,7 @@ public class Client implements Runnable {
 
         try {
             while (isRunning && !isShuttingDown) {
+                refresh(false);
                 PrintUserOptions();
 
                 int option;
@@ -911,109 +936,7 @@ public class Client implements Runnable {
                     case 9:
                     {
                         // Refresh
-                        System.out.println("\n------------- REFRESH -------------");
-
-                        // Get the social graph
-                        Message clientGraphMessage = new Message();
-                        clientGraphMessage.type = MessageType.GET_CLIENT_GRAPH;
-                        PayloadUserID pUserID = new PayloadUserID();
-                        clientGraphMessage.payload = pUserID;
-
-                        pUserID.clientID = this.ID;
-
-                        this.oStream.writeObject(clientGraphMessage);
-                        this.oStream.flush();
-
-                        PayloadClientGraph pClientGraph = (PayloadClientGraph)((Message)this.iStream.readObject()).payload;
-
-                        // Update followers, followings
-                        this.followerDatas.clear();
-                        this.followerDatas.addAll(pClientGraph.followers);
-                        this.followingDatas.clear();
-                        this.followingDatas.addAll(pClientGraph.followings);
-
-                        // For all followings GET_NOTIFICATIONS
-                        Message notificationsMessage = new Message();
-                        notificationsMessage.type = MessageType.GET_NOTIFICATIONS;
-                        PayloadUserID pUserID2 = new PayloadUserID();
-                        notificationsMessage.payload = pUserID2;
-
-                        pUserID2.clientID = this.ID;
-
-                        this.oStream.writeObject(notificationsMessage);
-                        this.oStream.flush();
-
-                        // Populate notifications
-                        PayloadText pText = (PayloadText)((Message)this.iStream.readObject()).payload;
-
-                        String[] newNotifications = pText.text.split("\n");
-                        this.notifications.clear();
-
-                        if(newNotifications != null) {
-                            for(String notification : newNotifications) {
-                                if (!notification.trim().isEmpty()) {
-                                    this.notifications.add(notification);
-                                }
-                            }
-                        }
-
-                        // Synchronize Directory
-                        Message synchronizeMessage = new Message();
-                        synchronizeMessage.type = MessageType.SYNCHRONIZE_DIRECTORY;
-                        PayloadDirectory pDirectory = new PayloadDirectory();
-                        synchronizeMessage.payload = pDirectory;
-
-                        pDirectory.fileDatas = this.clientDirectory.ComputeFileDatas();
-                        pDirectory.clientID = this.ID;
-
-                        this.oStream.writeObject(synchronizeMessage);
-                        this.oStream.flush();
-
-                        Object receivedObject = this.iStream.readObject();
-                        ArrayList<String> unsynchronizedFilePaths;
-
-                        if (receivedObject instanceof ArrayList<?>) {
-                            ArrayList<?> rawList = (ArrayList<?>) receivedObject;
-                            unsynchronizedFilePaths = new ArrayList<String>();
-
-                            // Safely check each element
-                            for (Object item : rawList) {
-                                if (item instanceof String) {
-                                    unsynchronizedFilePaths.add((String) item);
-                                } else {
-                                    System.err.println("Warning: Non-string item in file paths list: " + item);
-                                }
-                            }
-                        } else {
-                            System.err.println("Error: Expected ArrayList but received: " + 
-                                              (receivedObject != null ? receivedObject.getClass().getName() : "null"));
-                            unsynchronizedFilePaths = new ArrayList<String>();
-                        }
-
-                        // System.out.println(unsynchronizedFilePaths.size());
-                        for (String filePath : unsynchronizedFilePaths) {
-                            Message getFileContentsMessage = new Message();
-                            getFileContentsMessage.type = MessageType.GET_FILE_CONTENTS;
-                            PayloadDownload pDownload = new PayloadDownload();
-                            getFileContentsMessage.payload = pDownload;
-
-                            pDownload.name = filePath;
-                            pDownload.clientID = this.ID;
-
-                            this.oStream.writeObject(getFileContentsMessage);
-                            this.oStream.flush();
-
-                            Object contents = this.iStream.readObject();
-                            // if (filePath.contains(".txt")) {
-                            //     System.out.println((String)contents);
-                            // }
-                            this.clientDirectory.SetFile(filePath);
-                            this.clientDirectory.GetFile(filePath).WriteFile(contents);;
-                        }
-
-                        System.out.println("✓ Refresh complete!");
-                        System.out.println("Updated notifications: " + this.notifications.size());
-                        System.out.println("-----------------------------------");
+                        refresh(true);
                     }
                     break;
                     default:
@@ -1085,6 +1008,121 @@ public class Client implements Runnable {
         }
 
         return result.toString().trim();
+    }
+
+    private void refresh(boolean flag) {
+        try {
+            if (flag) {
+                System.out.println("\n------------- REFRESH -------------");
+            }
+
+            // Get the social graph
+            Message clientGraphMessage = new Message();
+            clientGraphMessage.type = MessageType.GET_CLIENT_GRAPH;
+            PayloadUserID pUserID = new PayloadUserID();
+            clientGraphMessage.payload = pUserID;
+
+            pUserID.clientID = this.ID;
+
+            this.oStream.writeObject(clientGraphMessage);
+            this.oStream.flush();
+
+            PayloadClientGraph pClientGraph = (PayloadClientGraph)((Message)this.iStream.readObject()).payload;
+
+            // Update followers, followings
+            this.followerDatas.clear();
+            this.followerDatas.addAll(pClientGraph.followers);
+            this.followingDatas.clear();
+            this.followingDatas.addAll(pClientGraph.followings);
+
+            // For all followings GET_NOTIFICATIONS
+            Message notificationsMessage = new Message();
+            notificationsMessage.type = MessageType.GET_NOTIFICATIONS;
+            PayloadUserID pUserID2 = new PayloadUserID();
+            notificationsMessage.payload = pUserID2;
+
+            pUserID2.clientID = this.ID;
+
+            this.oStream.writeObject(notificationsMessage);
+            this.oStream.flush();
+
+            // Populate notifications
+            PayloadText pText = (PayloadText)((Message)this.iStream.readObject()).payload;
+
+            String[] newNotifications = pText.text.split("\n");
+            this.notifications.clear();
+
+            if(newNotifications != null) {
+                for(String notification : newNotifications) {
+                    if (!notification.trim().isEmpty()) {
+                        this.notifications.add(notification);
+                    }
+                }
+            }
+
+            // Synchronize Directory
+            Message synchronizeMessage = new Message();
+            synchronizeMessage.type = MessageType.SYNCHRONIZE_DIRECTORY;
+            PayloadDirectory pDirectory = new PayloadDirectory();
+            synchronizeMessage.payload = pDirectory;
+
+            pDirectory.fileDatas = this.clientDirectory.ComputeFileDatas();
+            pDirectory.clientID = this.ID;
+
+            this.oStream.writeObject(synchronizeMessage);
+            this.oStream.flush();
+
+            Object receivedObject = this.iStream.readObject();
+            ArrayList<String> unsynchronizedFilePaths;
+
+            if (receivedObject instanceof ArrayList<?>) {
+                ArrayList<?> rawList = (ArrayList<?>) receivedObject;
+                unsynchronizedFilePaths = new ArrayList<String>();
+
+                // Safely check each element
+                for (Object item : rawList) {
+                    if (item instanceof String) {
+                        unsynchronizedFilePaths.add((String) item);
+                    } else {
+                        System.err.println("Warning: Non-string item in file paths list: " + item);
+                    }
+                }
+            } else {
+                System.err.println("Error: Expected ArrayList but received: " + 
+                                  (receivedObject != null ? receivedObject.getClass().getName() : "null"));
+                unsynchronizedFilePaths = new ArrayList<String>();
+            }
+
+            for (String filePath : unsynchronizedFilePaths) {
+                Message getFileContentsMessage = new Message();
+                getFileContentsMessage.type = MessageType.GET_FILE_CONTENTS;
+                PayloadDownload pDownload = new PayloadDownload();
+                getFileContentsMessage.payload = pDownload;
+
+                pDownload.name = filePath;
+                pDownload.clientID = this.ID;
+
+                this.oStream.writeObject(getFileContentsMessage);
+                this.oStream.flush();
+
+                Object contents = this.iStream.readObject();
+                // if (filePath.contains(".txt")) {
+                //     System.out.println((String)contents);
+                // }
+                this.clientDirectory.SetFile(filePath);
+                this.clientDirectory.GetFile(filePath).WriteFile(contents);;
+            }
+
+            if (flag) {
+                System.out.println("✓ Refresh complete!");
+                System.out.println("Updated notifications: " + this.notifications.size());
+                System.out.println("-----------------------------------");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException();
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException();
+        }
     }
 
     int _ceil(float x) {

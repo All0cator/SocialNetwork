@@ -66,9 +66,15 @@ public class ServerActions implements Runnable {
                         loginResponse.payload = pResult;
                         pResult.clientID = ID;
 
-                        oStream.writeObject(loginResponse);
-                        oStream.flush();
-                    }    
+                        try {
+                            oStream.writeObject(loginResponse);
+                            oStream.flush();
+                            // System.out.println("DEBUG: Response sent successfully");
+                        } catch (IOException e) {
+                            System.err.println("ERROR: Failed to send login response: " + e.getMessage());
+                            throw e;
+                        }
+                    }
                     break;
                     case SIGNUP:
                     {
@@ -148,14 +154,6 @@ public class ServerActions implements Runnable {
                             if (othersFile != null) {
                                 othersFile.AppendFile(appendLines);
                                 // System.out.println("DEBUG: Follow request successfully added to server directory");
-
-                                // Send a follow request message back to the client
-                                Message responseMessage = new Message();
-                                responseMessage.type = MessageType.FOLLOW_REQUEST;
-                                responseMessage.payload = null;
-
-                                this.oStream.writeObject(responseMessage);
-                                this.oStream.flush();
                             } else {
                                 System.err.println("Could not create/access Others file for user " + pRequest.clientIDDestination);
                             }

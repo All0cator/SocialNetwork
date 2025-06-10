@@ -19,7 +19,7 @@ public class Message implements Serializable {
     public String toString() {
         return "Message{" +
                 "type=" + type +
-                ", payload=" + payload.toString() +
+                ", payload=" + (payload != null ? payload.toString() : "null") +
                 '}';
     }
 }
