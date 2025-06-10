@@ -1,4 +1,5 @@
 import java.io.ByteArrayInputStream;
+// import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -95,13 +96,18 @@ public class ServerActions implements Runnable {
                         SocialGraphNode targetNode = this.server.GetSocialGraph().GetUserNode(pRequest.clientIDDestination);
 
                         if (sourceNode != null && targetNode != null) {
+                            // Remove follow request from source's notifications
                             Directory sourceDirectory = this.server.GetDirectory(pRequest.clientIDSource);
                             Set<String> removeLines = new HashSet<String>();
                             removeLines.add(String.format("%d follow request", pRequest.clientIDDestination));
                             sourceDirectory.GetFile(sourceDirectory.GetLocalNotificationsName()).RemoveFile(removeLines);
 
+                            // Add the follow relationship
                             sourceNode.AddFollower(targetNode);
                             targetNode.AddFollowing(sourceNode);
+
+                            // Update the SocialGraph.txt file
+                            updateSocialGraphFile();
                         }
                     }
                     break;
@@ -170,6 +176,9 @@ public class ServerActions implements Runnable {
                         if (source != null && dest != null) {
                             source.RemoveFollowing(dest);
                             dest.RemoveFollower(source);
+
+                            // Update the SocialGraph.txt file
+                            updateSocialGraphFile();
                         }
 
                         // Return social graph
@@ -177,6 +186,7 @@ public class ServerActions implements Runnable {
                         response.type = MessageType.UNFOLLOW;
                         PayloadClientGraph pClientGraph = new PayloadClientGraph();
                         response.payload = pClientGraph;
+
                         pClientGraph.followings = new ArrayList<UserAccountData>();
 
                         if (source != null) {
@@ -593,4 +603,46 @@ public class ServerActions implements Runnable {
             throw new RuntimeException();
         }
     }
+
+    private void updateSocialGraphFile() {
+        this.server.updateSocialGraphFile();
+    }
+
+/*
+    // Helper method to ServerActions.java
+    private void updateSocialGraphFile() {
+        try {
+            StringBuilder graphContent = new StringBuilder();
+
+            // Write all users in the social graph
+            for (int userID = 0; userID < this.server.GetUserCount() + 1; userID++) {
+                SocialGraphNode userNode = this.server.GetSocialGraph().GetUserNode(userID);
+                if (userNode != null) {
+                    graphContent.append(userID);
+
+                    // Add follower IDs
+                    Set<Integer> followerIDs = userNode.GetFollowerIDs();
+                    for (Integer followerID : followerIDs) {
+                        graphContent.append(" ").append(followerID);
+                    }
+
+                    if (userID < this.userCount) {
+                        graphContent.append("\n");
+                    }
+                }
+            }
+
+            // Write to SocialGraph.txt file
+            String graphFilePath = this.server.GetServerDirectoryPath() + "SocialGraph.txt";
+            try (FileWriter writer = new FileWriter(graphFilePath)) {
+                writer.write(graphContent.toString());
+            }
+
+            System.out.println("SocialGraph.txt updated");
+
+        } catch (Exception e) {
+            System.err.println("Error updating SocialGraph.txt: " + e.getMessage());
+        }
+    }
+*/
 }

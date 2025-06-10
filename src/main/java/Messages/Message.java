@@ -14,4 +14,12 @@ public class Message implements Serializable {
         this.type = other.type;
         this.payload = other.payload;
     }
+
+    @Override
+    public String toString() {
+        return "Message{" +
+                "type=" + type +
+                ", payload=" + payload.toString() +
+                '}';
+    }
 }

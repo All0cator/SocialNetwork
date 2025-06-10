@@ -53,4 +53,14 @@ public class PayloadUpload implements Serializable {
                this.multilingualText.get(language) != null && 
                !this.multilingualText.get(language).trim().isEmpty();
     }
+
+    @Override
+    public String toString() {
+        return "PayloadUpload{" +
+                "clientID=" + clientID +
+                ", imageName='" + imageName + '\'' +
+                ", textName='" + textName + '\'' +
+                ", multilingualText=" + multilingualText +
+                '}';
+    }
 }

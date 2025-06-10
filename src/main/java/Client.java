@@ -165,7 +165,7 @@ public class Client implements Runnable {
                         if (clientID != -1) {
                             // Valid connection
                             this.ID = clientID;
-                            this.clientDirectoryPath = "src/main/resources/ClientDirectories/Client" + Integer.toString(clientID) + "/";
+                            this.clientDirectoryPath = String.join(File.separator, "src", "main", "resources", "ClientDirectories", "Client" + clientID, "");
                             this.clientDirectory = new Directory(this.clientDirectoryPath, clientID);
                             System.out.println("✓ Login successful! Welcome client " + Integer.toString(this.ID));
 
@@ -206,7 +206,7 @@ public class Client implements Runnable {
                         if (clientID != -1) {
                             // Valid connection
                             this.ID = clientID;
-                            this.clientDirectoryPath = "src/main/resources/ClientDirectories/Client" + Integer.toString(clientID) + "/";
+                            this.clientDirectoryPath = String.join(File.separator, "src", "main", "resources", "ClientDirectories", "Client" + clientID, "");
                             this.clientDirectory = new Directory(this.clientDirectoryPath, clientID);
                             System.out.println("✓ Account created successfully! Welcome client " + Integer.toString(this.ID));
 

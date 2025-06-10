@@ -8,4 +8,12 @@ import POD.UserAccountData;
 public class PayloadClientGraph implements Serializable {
     public ArrayList<UserAccountData> followers;
     public ArrayList<UserAccountData> followings;
+
+    @Override
+    public String toString() {
+        return "PayloadClientGraph{" +
+                "followers=" + followers +
+                ", followings=" + followings +
+                '}';
+    }
 }
