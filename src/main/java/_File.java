@@ -73,6 +73,95 @@ public class _File {
         }
     }
 
+    // Non-blocking lock methods
+    public boolean tryAcquireReadLock() {
+        try {
+            return readLock.tryLock(100, TimeUnit.MILLISECONDS);  // Very short timeout
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    public boolean tryAcquireWriteLock() {
+        try {
+            return writeLock.tryLock(100, TimeUnit.MILLISECONDS);  // Very short timeout
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    // Check if file is currently locked for writing
+    public boolean isWriteLocked() {
+        return rwLock.isWriteLocked();
+    }
+
+    // Check if file has any locks
+    public boolean hasActiveLocks() {
+        return rwLock.getReadLockCount() > 0 || rwLock.isWriteLocked();
+    }
+
+    // Safe read method that can fail gracefully
+    public synchronized Object tryReadFile() {
+        if (!tryAcquireReadLock()) {
+            return null;  // Indicates file is locked
+        }
+
+        try {
+            Object result = null;
+            String fileExtension = this.GetFileExtension();
+
+            if (fileExtension.equals("")) {
+                throw new RuntimeException("File has no extension");
+            }
+
+            if (".txt".equals(fileExtension)) {
+                StringBuilder resultBuilder = new StringBuilder();
+
+                try (BufferedReader br = new BufferedReader(new FileReader(new File(this.globalFilePath)))) {
+                    String line;
+                    boolean firstLine = true;
+
+                    while ((line = br.readLine()) != null) {
+                        if (!firstLine) {
+                            resultBuilder.append("\n");
+                        }
+                        resultBuilder.append(line);
+                        firstLine = false;
+                    }
+
+                    result = resultBuilder.toString();
+                } catch(IOException e) {
+                    throw new RuntimeException("Failed to read text file: " + e.getMessage(), e);
+                }
+            } else {
+                // Handle images if needed
+                try {
+                    BufferedImage bImage = ImageIO.read(new File(this.globalFilePath));
+                    if (bImage == null) {
+                        throw new RuntimeException("Failed to read image file - unsupported format or file doesn't exist");
+                    }
+
+                    ByteArrayOutputStream oStream = new ByteArrayOutputStream();
+                    String formatName = fileExtension.substring(1);
+
+                    if (!ImageIO.write(bImage, formatName, oStream)) {
+                        throw new RuntimeException("Failed to write image in format: " + formatName);
+                    }
+
+                    result = oStream.toByteArray();
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to read image file: " + e.getMessage(), e);
+                }
+            }
+
+            return result;
+        } finally {
+            releaseReadLock();
+        }
+    }
+
     public String GetLocalFilePath() {
         return this.localFilePath;
     }

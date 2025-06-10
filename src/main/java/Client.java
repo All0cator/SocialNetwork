@@ -102,7 +102,7 @@ public class Client implements Runnable {
             this.serverConnection = new Socket(serverHostIP, serverPort);
             this.oStream = new ObjectOutputStream(this.serverConnection.getOutputStream());
             this.iStream = new ObjectInputStream(this.serverConnection.getInputStream());
-            System.out.println("DEBUG: Connection established to server");
+            // System.out.println("DEBUG: Connection established to server");
         } catch (IOException e) {
             System.err.println("ERROR: Failed to connect to server: " + e.getMessage());
             throw e;
@@ -570,41 +570,10 @@ public class Client implements Runnable {
                         }
 
                         System.out.print("\nSelect user to view profile (-1 to cancel): ");
-                        int choice2;
-                        try {
-                            choice2 = Integer.parseInt(sc.nextLine());
-                            if (choice2 < -1 || choice2 >= this.followingDatas.size()) {
-                                System.out.println("Invalid selection.");
-                                System.out.println("-----------------------------------");
-                                break;
-                            }
-                        } catch(NumberFormatException e) {
-                            System.out.println("Invalid input. Please enter a number.");
-                            System.out.println("-----------------------------------");
-                            break;
-                        }
-
-                        if (choice2 == -1) {
-                            System.out.println("-----------------------------------");
-                            break;
-                        }
-
-                        // Send access profile request with PayloadcClientRequest
-                        Message requestMessage = new Message();
-                        requestMessage.type = MessageType.ACCESS_PROFILE;
-                        PayloadClientRequest pRequest = new PayloadClientRequest();
-                        requestMessage.payload = pRequest;
-                        pRequest.clientIDSource = this.ID;
-
-                        for (int i = 0; i < this.followingDatas.size(); ++i) {
-                            System.out.printf("%d) %s\n", i, this.followingDatas.get(i));
-                        }
-
-                        System.out.println("Input Client ID to view Profile: ");
-                        int profileChoice;  // Changed from 'choice2' to 'profileChoice'
+                        int profileChoice;
                         try {
                             profileChoice = Integer.parseInt(sc.nextLine());
-                            if(profileChoice < -1 || profileChoice >= this.followingDatas.size()) {
+                            if (profileChoice < -1 || profileChoice >= this.followingDatas.size()) {
                                 System.out.println("Invalid selection.");
                                 System.out.println("-----------------------------------");
                                 break;
@@ -619,6 +588,13 @@ public class Client implements Runnable {
                             System.out.println("-----------------------------------");
                             break;
                         }
+
+                        // Send access profile request with PayloadcClientRequest
+                        Message requestMessage = new Message();
+                        requestMessage.type = MessageType.ACCESS_PROFILE;
+                        PayloadClientRequest pRequest = new PayloadClientRequest();
+                        requestMessage.payload = pRequest;
+                        pRequest.clientIDSource = this.ID;
 
                         pRequest.clientIDDestination = this.followingDatas.get(profileChoice).ID;
 

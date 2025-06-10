@@ -107,6 +107,36 @@ public class Directory {
         this.localFilePathToFile.put(fileName, f);
     }
 
+    // Safe profile access method
+    public String tryGetProfile() {
+        _File file = localFilePathToFile.get("Profile_31client" + Integer.toString(this.clientID) + ".txt");
+        if (file == null) {
+            return null;
+        }
+
+        Object result = file.tryReadFile();
+        if (result == null) {
+            return "LOCKED";  // Special indicator
+        }
+
+        return (String) result;
+    }
+
+    // Safe notifications access method
+    public String tryGetNotifications() {
+        _File file = localFilePathToFile.get("Others_31client" + Integer.toString(this.clientID) + ".txt");
+        if (file == null) {
+            return null;
+        }
+
+        Object result = file.tryReadFile();
+        if (result == null) {
+            return "LOCKED";  // Special indicator
+        }
+
+        return (String) result;
+    }
+
     public String GetNotifications() {
         _File file = localFilePathToFile.get("Others_31client" + Integer.toString(this.clientID) + ".txt");
 

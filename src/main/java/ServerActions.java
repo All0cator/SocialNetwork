@@ -292,13 +292,38 @@ public class ServerActions implements Runnable {
                     case ACCESS_PROFILE:
                     {
                         PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
-                        Directory userDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
+
+                        // Check if the requesting client follows the target client
+                        SocialGraphNode requestingNode = this.server.GetSocialGraph().GetUserNode(pRequest.clientIDSource);
+                        boolean isFollowing = false;
+
+                        if (requestingNode != null) {
+                            Set<Integer> followingIDs = requestingNode.GetFollowingIDs();
+                            isFollowing = followingIDs.contains(pRequest.clientIDDestination);
+                        }
 
                         PayloadText pText = new PayloadText();
-                        pText.text = "Access Profile Denied Reason: not following specified client";
 
-                        if (userDirectory != null) {
-                            pText.text = userDirectory.GetProfile();
+                        if (!isFollowing) {
+                            pText.text = "Access Profile Denied Reason: not following specified client";
+                        } else {
+                            Directory userDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
+
+                            if (userDirectory != null) {
+                                String profileContent = userDirectory.tryGetProfile();
+
+                                if (profileContent == null) {
+                                    pText.text = "Access Profile Denied Reason: profile file not found";
+                                } else if ("LOCKED".equals(profileContent)) {
+                                    pText.text = "The file is locked! Profile is currently being accessed by another process.";
+                                    System.out.println("Client " + pRequest.clientIDSource + " attempted to access locked profile of client " + pRequest.clientIDDestination);
+                                } else {
+                                    pText.text = profileContent;
+                                    System.out.println("Client " + pRequest.clientIDSource + " accessed profile of client " + pRequest.clientIDDestination);
+                                }
+                            } else {
+                                pText.text = "Access Profile Denied Reason: user directory not found";
+                            }
                         }
 
                         this.oStream.writeObject(pText);
@@ -309,63 +334,67 @@ public class ServerActions implements Runnable {
                     {
                         PayloadUpload pUpload = (PayloadUpload)connectionMessage.payload;
 
-                        // Write to the correct directory append to clientProfile also
-                        Directory clientDirectory = this.server.GetDirectory(pUpload.clientID);
+                        try {
+                            // Write to the correct directory append to clientProfile also
+                            Directory clientDirectory = this.server.GetDirectory(pUpload.clientID);
 
-                        // Save image
-                        clientDirectory.SetFile(pUpload.imageName);
-                        clientDirectory.GetFile(pUpload.imageName).WriteFile(pUpload.imageData);
+                            // Save image
+                            clientDirectory.SetFile(pUpload.imageName);
+                            clientDirectory.GetFile(pUpload.imageName).WriteFile(pUpload.imageData);
 
-                        // Save multilingual text with proper formatting
-                        String textContent = "";
+                            // Save multilingual text with proper formatting
+                            String textContent = "";
 
-                        if (pUpload.hasText(Language.ENGLISH) && pUpload.hasText(Language.GREEK)) {
-                            // Both languages available
-                            textContent = pUpload.getFormattedText(Language.BOTH);
-                        } else if (pUpload.hasText(Language.ENGLISH)) {
-                            // English only
-                            textContent = "[EN]\n" + pUpload.getText(Language.ENGLISH);
-                        } else if (pUpload.hasText(Language.GREEK)) {
-                            // Greek only
-                            textContent = "[EL]\n" + pUpload.getText(Language.GREEK);
-                        } else {
-                            textContent = pUpload.acompanyingText != null ? pUpload.acompanyingText : "";
-                        }
-
-                        // Save the text file
-                        clientDirectory.SetFile(pUpload.textName);
-                        clientDirectory.GetFile(pUpload.textName).WriteFile(textContent);
-
-                        // Update profile of the uploader
-                        ArrayList<String> appendList = new ArrayList<String>();
-                        appendList.add(String.format("%d posted %s", pUpload.clientID, pUpload.imageName));
-                        clientDirectory.GetFile(clientDirectory.GetLocalProfileName()).AppendFile(appendList);
-
-                        // Record this post in the Others_31clientID.txt files of all followers
-                        SocialGraphNode uploaderNode = this.server.GetSocialGraph().GetUserNode(pUpload.clientID);
-                        if (uploaderNode != null) {
-                            Set<Integer> followerIDs = uploaderNode.GetFollowerIDs();
-
-                            for (Integer followerID : followerIDs) {
-                                try {
-                                    Directory followerDirectory = this.server.GetDirectory(followerID);
-                                    if (followerDirectory != null) {
-                                        // Add the post notification to follower's Others file
-                                        ArrayList<String> followerNotification = new ArrayList<String>();
-                                        followerNotification.add(String.format("%d posted %s", pUpload.clientID, pUpload.imageName));
-
-                                        _File followerOthersFile = followerDirectory.GetFile(followerDirectory.GetLocalNotificationsName());
-                                        if (followerOthersFile != null) {
-                                            followerOthersFile.AppendFile(followerNotification);
-                                        }
-                                    }
-                                } catch (Exception e) {
-                                    System.err.println("Error updating follower " + followerID + " notifications: " + e.getMessage());
-                                    // Continue with other followers even if one fails
-                                }
+                            if (pUpload.hasText(Language.ENGLISH) && pUpload.hasText(Language.GREEK)) {
+                                // Both languages available
+                                textContent = pUpload.getFormattedText(Language.BOTH);
+                            } else if (pUpload.hasText(Language.ENGLISH)) {
+                                // English only
+                                textContent = "[EN]\n" + pUpload.getText(Language.ENGLISH);
+                            } else if (pUpload.hasText(Language.GREEK)) {
+                                // Greek only
+                                textContent = "[EL]\n" + pUpload.getText(Language.GREEK);
+                            } else {
+                                textContent = pUpload.acompanyingText != null ? pUpload.acompanyingText : "";
                             }
 
-                            System.out.println("Post recorded for " + followerIDs.size() + " followers");
+                            // Save the text file
+                            clientDirectory.SetFile(pUpload.textName);
+                            clientDirectory.GetFile(pUpload.textName).WriteFile(textContent);
+
+                            // Update profile of the uploader
+                            ArrayList<String> appendList = new ArrayList<String>();
+                            appendList.add(String.format("%d posted %s", pUpload.clientID, pUpload.imageName));
+                            clientDirectory.GetFile(clientDirectory.GetLocalProfileName()).AppendFile(appendList);
+
+                            // Record this post in the Others_31clientID.txt files of all followers
+                            SocialGraphNode uploaderNode = this.server.GetSocialGraph().GetUserNode(pUpload.clientID);
+                            if (uploaderNode != null) {
+                                Set<Integer> followerIDs = uploaderNode.GetFollowerIDs();
+
+                                for (Integer followerID : followerIDs) {
+                                    try {
+                                        Directory followerDirectory = this.server.GetDirectory(followerID);
+                                        if (followerDirectory != null) {
+                                            // Add the post notification to follower's Others file
+                                            ArrayList<String> followerNotification = new ArrayList<String>();
+                                            followerNotification.add(String.format("%d posted %s", pUpload.clientID, pUpload.imageName));
+
+                                            _File followerOthersFile = followerDirectory.GetFile(followerDirectory.GetLocalNotificationsName());
+                                            if (followerOthersFile != null) {
+                                                followerOthersFile.AppendFile(followerNotification);
+                                            }
+                                        }
+                                    } catch (Exception e) {
+                                        System.err.println("Error updating follower " + followerID + " notifications: " + e.getMessage());
+                                        // Continue with other followers even if one fails
+                                    }
+                                }
+
+                                System.out.println("Post recorded for " + followerIDs.size() + " followers");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("ERROR: Upload failed for client " + pUpload.clientID + ": " + e.getMessage());
                         }
                     }
                     break;
