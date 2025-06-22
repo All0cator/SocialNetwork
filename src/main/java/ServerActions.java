@@ -1,6 +1,8 @@
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 // import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -12,27 +14,33 @@ import java.util.Set;
 import Messages.Language;
 import Messages.Message;
 import Messages.MessageType;
+import Messages.PayloadApproveComment;
 import Messages.PayloadClientGraph;
 import Messages.PayloadClientRequest;
+import Messages.PayloadComment;
 import Messages.PayloadCredentials;
 import Messages.PayloadDownload;
 import Messages.PayloadText;
 import Messages.PayloadUpload;
 import Messages.PayloadUserID;
+import POD.FileData;
 import POD.UserAccountData;
 
 
 public class ServerActions implements Runnable {
 
+    public int clientID; // this is not connection ID it is the ID of the client using the socket
     private Socket connectionSocket;
-    private Server server;
+    public Server server;
 
+    // Do not send messages in these access them through server
     private ObjectOutputStream oStream;
     private ObjectInputStream iStream;
 
     public ServerActions(Socket connectionSocket, Server server) {
         this.connectionSocket = connectionSocket;
         this.server = server;
+        this.clientID = -1;
 
         try {
             this.oStream = new ObjectOutputStream(connectionSocket.getOutputStream());
@@ -45,10 +53,6 @@ public class ServerActions implements Runnable {
     @Override
     public void run() {
         try {
-
-            //PayloadUserID pUser = (PayloadUserID)((Message)this.iStream.readObject()).payload;
-
-            //Thread.currentThread().setName(Integer.toString(pUser.clientID));
 
             while(!this.connectionSocket.isClosed()) {
                 Message connectionMessage = (Message)iStream.readObject();
@@ -70,6 +74,20 @@ public class ServerActions implements Runnable {
                             oStream.writeObject(loginResponse);
                             oStream.flush();
                             // System.out.println("DEBUG: Response sent successfully");
+
+                            /*if(this.clientID >= 0) {
+                                this.server.UnRegisterOStream(this.clientID);
+                                this.clientID = ID;
+                                this.server.RegisterOStream(this.clientID, this.oStream);
+                            } else {
+                                this.clientID = ID;
+                                this.server.RegisterOStream(this.clientID, this.oStream);
+                            }*/
+
+                            this.clientID = ID;
+                            //if(ID >= 0) {
+                            //    
+                            //}
                         } catch (IOException e) {
                             System.err.println("ERROR: Failed to send login response: " + e.getMessage());
                             throw e;
@@ -90,6 +108,14 @@ public class ServerActions implements Runnable {
 
                         oStream.writeObject(registerResponse);
                         oStream.flush();
+                        
+                        //if(ID >= 0) {
+                            //this.server.UnRegisterOStream(this.clientID);
+                            //this.clientID = ID;
+                            //this.server.RegisterOStream(this.clientID, this.oStream);
+                        //}
+
+                        this.clientID = ID;
                     }
                     break;
                     case FOLLOW_REQUEST_ACCEPT:
@@ -106,7 +132,7 @@ public class ServerActions implements Runnable {
                             Directory sourceDirectory = this.server.GetDirectory(pRequest.clientIDSource);
                             Set<String> removeLines = new HashSet<String>();
                             removeLines.add(String.format("%d follow request", pRequest.clientIDDestination));
-                            sourceDirectory.GetFile(sourceDirectory.GetLocalNotificationsName()).RemoveFile(removeLines);
+                            sourceDirectory.GetFile(sourceDirectory.GetLocalNotificationsName()).RemoveFile(removeLines, this);
 
                             // Add the follow relationship
                             sourceNode.AddFollower(targetNode);
@@ -128,7 +154,7 @@ public class ServerActions implements Runnable {
                             Directory sourceDirectory = this.server.GetDirectory(pRequest.clientIDSource);
                             Set<String> removeLines = new HashSet<String>();
                             removeLines.add(String.format("%d follow request", pRequest.clientIDDestination));
-                            sourceDirectory.GetFile(sourceDirectory.GetLocalNotificationsName()).RemoveFile(removeLines);
+                            sourceDirectory.GetFile(sourceDirectory.GetLocalNotificationsName()).RemoveFile(removeLines, this);
                         }
                     }
                     break;
@@ -152,7 +178,7 @@ public class ServerActions implements Runnable {
 
                             _File othersFile = targetDirectory.GetFile(othersFileName);
                             if (othersFile != null) {
-                                othersFile.AppendFile(appendLines);
+                                othersFile.AppendFile(appendLines, this);
                                 // System.out.println("DEBUG: Follow request successfully added to server directory");
                             } else {
                                 System.err.println("Could not create/access Others file for user " + pRequest.clientIDDestination);
@@ -252,7 +278,7 @@ public class ServerActions implements Runnable {
 
                             for (Integer ID : followingsIDs) {
                                 Directory followingDirectory = this.server.GetDirectory(ID);
-                                String notifications = followingDirectory.GetNotifications();
+                                String notifications = followingDirectory.GetNotifications(this);
 
                                 if (notifications != null && notifications.trim().length() > 0) {
                                     String[] lines = notifications.split("\n");
@@ -266,7 +292,7 @@ public class ServerActions implements Runnable {
 
                             // Get user's own notifications (including follow requests) - READ FROM SERVER DIRECTORY
                             Directory userDirectory = this.server.GetDirectory(userID);
-                            String userNotifications = userDirectory.GetNotifications();
+                            String userNotifications = userDirectory.GetNotifications(this);
 
                             // System.out.println("DEBUG: User " + userID + " notifications content: " + userNotifications);
 
@@ -340,32 +366,32 @@ public class ServerActions implements Runnable {
 
                             // Save image
                             clientDirectory.SetFile(pUpload.imageName);
-                            clientDirectory.GetFile(pUpload.imageName).WriteFile(pUpload.imageData);
+                            clientDirectory.GetFile(pUpload.imageName).WriteFile(pUpload.imageData, this);
 
                             // Save multilingual text with proper formatting
                             String textContent = "";
 
-                            if (pUpload.hasText(Language.ENGLISH) && pUpload.hasText(Language.GREEK)) {
+                            if (pUpload.multiLingualText.hasText(Language.ENGLISH) && pUpload.multiLingualText.hasText(Language.GREEK)) {
                                 // Both languages available
-                                textContent = pUpload.getFormattedText(Language.BOTH);
-                            } else if (pUpload.hasText(Language.ENGLISH)) {
+                                textContent = pUpload.multiLingualText.getFormattedText(Language.BOTH);
+                            } else if (pUpload.multiLingualText.hasText(Language.ENGLISH)) {
                                 // English only
-                                textContent = "[EN]\n" + pUpload.getText(Language.ENGLISH);
-                            } else if (pUpload.hasText(Language.GREEK)) {
+                                textContent = "[EN]\n" + pUpload.multiLingualText.getText(Language.ENGLISH);
+                            } else if (pUpload.multiLingualText.hasText(Language.GREEK)) {
                                 // Greek only
-                                textContent = "[EL]\n" + pUpload.getText(Language.GREEK);
+                                textContent = "[EL]\n" + pUpload.multiLingualText.getText(Language.GREEK);
                             } else {
                                 textContent = pUpload.acompanyingText != null ? pUpload.acompanyingText : "";
                             }
 
                             // Save the text file
                             clientDirectory.SetFile(pUpload.textName);
-                            clientDirectory.GetFile(pUpload.textName).WriteFile(textContent);
+                            clientDirectory.GetFile(pUpload.textName).WriteFile(textContent, this);
 
                             // Update profile of the uploader
                             ArrayList<String> appendList = new ArrayList<String>();
                             appendList.add(String.format("%d posted %s", pUpload.clientID, pUpload.imageName));
-                            clientDirectory.GetFile(clientDirectory.GetLocalProfileName()).AppendFile(appendList);
+                            clientDirectory.GetFile(clientDirectory.GetLocalProfileName()).AppendFile(appendList, this);
 
                             // Record this post in the Others_31clientID.txt files of all followers
                             SocialGraphNode uploaderNode = this.server.GetSocialGraph().GetUserNode(pUpload.clientID);
@@ -382,7 +408,7 @@ public class ServerActions implements Runnable {
 
                                             _File followerOthersFile = followerDirectory.GetFile(followerDirectory.GetLocalNotificationsName());
                                             if (followerOthersFile != null) {
-                                                followerOthersFile.AppendFile(followerNotification);
+                                                followerOthersFile.AppendFile(followerNotification, this);
                                             }
                                         }
                                     } catch (Exception e) {
@@ -403,6 +429,7 @@ public class ServerActions implements Runnable {
                         PayloadDownload pDownload = (PayloadDownload)connectionMessage.payload;
                         int srcClientID = pDownload.clientID;
                         String photoName = pDownload.name;
+                        String descriptionTextLocalPath = photoName.split("\\.")[0] + ".txt";
 
                         // Reply from which client it gets the image
                         Message responseMessage = new Message();
@@ -415,9 +442,33 @@ public class ServerActions implements Runnable {
                         Set<Integer> followings = srcClientNode.GetFollowingIDs();
 
                         _File photoFile = null;
+                        _File descriptionFile = null;
                         int directoryClientID = 0;
-
+                        
+                        // get photoFile that satisfies the description language constraint 
                         for (Integer followingID : followings) {
+                            descriptionFile = this.server.GetDirectory(followingID).GetFile(descriptionTextLocalPath);
+                            
+                            if(descriptionFile == null) continue;
+                            
+                            String[] descriptionTextLines = ((String)descriptionFile.ReadFile(this)).split("\n"); 
+                            
+                            Set<String> languageTags = new HashSet<String>();
+                            
+                            for(int i = 0; i < descriptionTextLines.length; ++i) {
+                                if(descriptionTextLines[i].equals("[EN]") || descriptionTextLines[i].equals("[EL]")) {
+                                    languageTags.add(descriptionTextLines[i]);
+                                }
+                            }
+                            
+                            // assume descriptions always have at least 1 language tag eg. [EN]
+                            
+                            if(pDownload.preferredLanguage != Language.BOTH) {
+                                if(!languageTags.contains("[" + (pDownload.preferredLanguage.getCode().toUpperCase()) + "]")) {
+                                    continue;
+                                }
+                            }
+                            
                             photoFile = this.server.GetDirectory(followingID).GetFile(photoName);
                             directoryClientID = followingID;
 
@@ -446,9 +497,23 @@ public class ServerActions implements Runnable {
                         this.oStream.writeObject(message1);
                         this.oStream.flush();
 
+                        // Ask permission from image owner and block wait for response
+                        // [userID] approval request [photoName]
+
+                        ArrayList<String> ask = new ArrayList<String>();
+                        ask.add(Integer.toString(srcClientID) + " approval request " + photoName);
+
+                        Directory imageOwnerDirectory = this.server.GetDirectory(directoryClientID);
+                        imageOwnerDirectory.GetFile(imageOwnerDirectory.GetLocalNotificationsName()).AppendFile(ask, this);
+
                         // 3-way handshake
-                        System.out.println("Syn");
                         Message syn = (Message)this.iStream.readObject();
+                        System.out.println("Syn");
+
+                        if(syn.type == MessageType.ERROR) {
+                            // Download not approved
+                            break;
+                        }
 
                         // Validate the SYN message
                         if (syn.type != MessageType.SYN) {
@@ -470,10 +535,10 @@ public class ServerActions implements Runnable {
 
                         System.out.println("Ack");
                         Message ack = (Message)this.iStream.readObject();
-                        PayloadDownload pDownload3 = (PayloadDownload)ack.payload;
+                        int timeout = (int)ack.payload;
 
-                        System.out.println("Timeout: " + Integer.toString(pDownload3.timeout));
-                        this.connectionSocket.setSoTimeout(pDownload3.timeout);
+                        System.out.println("Timeout: " + Integer.toString(timeout));
+                        this.connectionSocket.setSoTimeout(timeout);
 
                         Message timeoutMessage = new Message();
 
@@ -482,7 +547,7 @@ public class ServerActions implements Runnable {
                         this.oStream.flush();
  
                         // Contains buffered Image serialized so when we deserialize we need to do ImageIO.write
-                        byte[] serializedBytes = (byte[])photoFile.ReadFile();
+                        byte[] serializedBytes = (byte[])photoFile.ReadFile(this);
 
                         // Retransmission
                         try {
@@ -507,57 +572,108 @@ public class ServerActions implements Runnable {
                         // Wait for ACK to start the Image transmission
                         Message response3 = (Message)this.iStream.readObject();
 
-                        // Validate the ACK message
-                        if (response3.type != MessageType.ACK) {
-                            System.err.println("Expected ACK message but received: " + response3.type);
-                            // Handle error appropriately
-                            Message errorMessage = new Message();
-                            errorMessage.type = MessageType.ERROR;
-                            this.oStream.writeObject(errorMessage);
-                            this.oStream.flush();
-                            break;
-                        }
-
                         int i = 0;
                         int serializedBytesOffset = 0;
 
+                        int imageBytes = (int)serializedBytes.length;;
+
+                        // Break image into 10 pieces
+                        int ne = (int)((float)imageBytes / 10.0f);
+                        int neFinalPacket = imageBytes - 9 * _ceil((float)imageBytes / 10.0f);
+
+                        int SEQ = 0;
+                        int windowSize = 3;
+                        int MAX_SEQ = 8;
+                        int window[] = new int[windowSize];
+
+                        // initialize window
+                        window[SEQ] = SEQ;
+                        window[SEQ + 1] = SEQ + 1;
+                        window[SEQ + 2] = SEQ + 2;
+
+                        this.connectionSocket.setSoTimeout(10000);
+
                         while (i < 10) {
                             System.out.println("i: " + Integer.toString(i));
-                            CommandAPDU commandAPDU = null;
-
+                            
                             try {
-                                System.out.println("Reading CommandAPDU...");
-                                commandAPDU = (CommandAPDU)this.iStream.readObject();
-                            } catch (SocketTimeoutException e) {
-                                this.connectionSocket.setSoTimeout(0);
-                                this.iStream.readObject();
-                                // Ignore CommandAPDU receive the second one
+                                ResponseAPDU responseAPDU = (ResponseAPDU)this.iStream.readObject();
+
+                                ByteArrayInputStream bis = new ByteArrayInputStream(responseAPDU.responseData);
+                                ObjectInputStream is = new ObjectInputStream(bis);
+
+                                int ACK = is.readInt();
+                                System.out.printf("Received ResponseAPDU ACK=%d...\n", ACK);
+
+                                // Success
+                                if(responseAPDU.sw1sw2 == 0x9000) {
+                                    if(ACK == window[0]) {
+                                        // packet sent ACK resonse matches the first packet in the window
+                                        // scroll the window
+                                        window[0] = window[1];
+                                        window[1] = window[2];
+                                        window[2] = (window[2] + 1) % MAX_SEQ;
+
+                                        i++;
+
+                                    } else {
+                                        // the packet was dropped
+                                    }
+                                }
+
+                            } catch(SocketTimeoutException e) {
+
+                                SEQ = window[0];
+
+                                int k = 0;
+
+                                int m = windowSize;
+
+                                if(i == 0) {
+                                    m = 4;
+                                }
+
+                                while(k < m && (i + k) < 10) {
+                                    CommandAPDU commandAPDU = new CommandAPDU();
+                                    
+                                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                                    ObjectOutputStream os = new ObjectOutputStream(bos);
+
+                                    os.writeInt(SEQ);
+                                    os.flush();
+
+                                    int len;
+                                    if(i + k == 9) {
+                                        len = neFinalPacket;
+                                    } else {
+                                        len = ne;
+                                    }
+
+                                    commandAPDU.nc = 0;
+                                    commandAPDU.ne = (short)(len + bos.toByteArray().length);
+
+                                    byte[] data = new byte[ne];
+
+                                    serializedBytesOffset = (i + k) * ne;
+
+                                    System.arraycopy(serializedBytes, serializedBytesOffset, data, 0, len);
+                                    
+                                    os.write(data);
+                                    os.flush();
+
+                                    commandAPDU.commandData = bos.toByteArray();
+                                    
+                                    System.out.printf("Sending CommandAPDU SEQ=%d...\n", SEQ);
+                                    this.oStream.writeObject(commandAPDU);
+                                    this.oStream.flush();
+
+                                    k++;
+                                    SEQ = (SEQ + 1) % MAX_SEQ;
+                                }
                             }
-
-                            if (i == 3) {
-                                System.out.println("Reading CommandAPDU...");
-                                commandAPDU = (CommandAPDU)this.iStream.readObject();
-                            }
-
-                            if (commandAPDU.nc > 0) {
-                                // We have received timeout
-                                ByteArrayInputStream baoo = new ByteArrayInputStream(commandAPDU.commandData);
-                                ObjectInputStream oi = new ObjectInputStream(baoo);
-                                this.connectionSocket.setSoTimeout(oi.readInt());
-                            }
-
-                            ResponseAPDU responseAPDU = new ResponseAPDU();
-                            responseAPDU.sw1sw2 = 0x9000;
-                            responseAPDU.responseData = new byte[commandAPDU.ne];
-
-                            System.arraycopy(serializedBytes, serializedBytesOffset, responseAPDU.responseData, 0, commandAPDU.ne);
-                            serializedBytesOffset += commandAPDU.ne;
-
-                            System.out.println("Sending ResponseAPDU...");
-                            this.oStream.writeObject(responseAPDU);
-                            this.oStream.flush();
-                            i++;
                         }
+
+                        this.connectionSocket.setSoTimeout(0);
 
                         System.out.println("Finished!");
 
@@ -568,14 +684,34 @@ public class ServerActions implements Runnable {
 
                         try {
                             textFile = this.server.GetDirectory(directoryClientID).GetFile(textFileName);
-                            if (textFile != null) {
-                                String fullText = (String)textFile.ReadFile();
+                            String textLines[] = ((String)textFile.ReadFile(this)).split("\n");
 
-                                // Send the full text - client will handle language preference
-                                pText.text = fullText;
-                            } else {
+                            if(textLines.length == 0) {
                                 pText.text = null;
                             }
+                            else {
+                                pText.text = "";
+                            }
+
+                            // get prefered language
+                            for(int j = 0; j < textLines.length; j++) {
+                                if(textLines[j].equals("[" + (pDownload.preferredLanguage.getCode().toUpperCase()) + "]")) {
+                                    
+                                    pText.text += textLines[j] + "\n";
+
+                                    if(j + 1 >= textLines.length) break;
+                                    
+                                    int m = j + 1;
+
+                                    while(m < textLines.length && !textLines[m].equals("[EL]") && !textLines[m].equals("[EN]")) {
+                                        pText.text += textLines[m] + "\n";
+                                        m++;
+                                    }
+                                    
+                                    j = m;
+                                }
+                            }
+
                         } catch (Exception e) {
                             pText.text = null;
                         }
@@ -589,12 +725,14 @@ public class ServerActions implements Runnable {
 
                         if (textFile != null) {
                             srcUserDirectory.SetFile(textFileName);
-                            srcUserDirectory.GetFile(textFileName).WriteFile(pText.text);
+                            srcUserDirectory.GetFile(textFileName).WriteFile(pText.text, this);
                         }
 
                         // Photo file is not null
                         srcUserDirectory.SetFile(photoName);
-                        srcUserDirectory.GetFile(photoName).WriteFile(serializedBytes);
+                        srcUserDirectory.GetFile(photoName).WriteFile(serializedBytes, this);
+
+                        this.server.AddDownload(photoFile.GetGlobalFilePath());
                     }
                     break;
                     case SYNCHRONIZE_DIRECTORY:
@@ -613,10 +751,133 @@ public class ServerActions implements Runnable {
                     {
                         PayloadDownload pDownload = (PayloadDownload)connectionMessage.payload;
 
-                        Object contents = this.server.GetDirectory(pDownload.clientID).GetFile(pDownload.name).ReadFile();
+                        Object contents = this.server.GetDirectory(pDownload.clientID).GetFile(pDownload.name).ReadFile(this);
 
                         this.oStream.writeObject(contents);
                         this.oStream.flush();
+                    }
+                    break;
+                    case ASK_COMMENT:
+                    {
+                        PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
+
+                        Message responseMessage = new Message();
+                        PayloadText pText = new PayloadText();
+                        responseMessage.payload = pText;
+
+
+                        SocialGraphNode destClientNode = this.server.GetSocialGraph().GetUserNode(pRequest.clientIDDestination);
+                        
+                        if(destClientNode == null) {
+                            pText.text = null;
+                            this.oStream.writeObject(responseMessage);
+                            this.oStream.flush();
+                            break;
+                        }
+
+                        // get all photo names of destinationUser
+                        Directory destClientDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
+
+                        FileData[] fileDatas = destClientDirectory.ComputeFileDatas();
+
+                        pText.text = "";
+
+                        if(fileDatas == null) {
+                            this.oStream.writeObject(responseMessage);
+                            this.oStream.flush();
+                            break;
+                        } 
+
+                        for(int i = 0; i < fileDatas.length; ++i) {
+                            if(fileDatas[i].filePath.endsWith(".png")) {
+                                pText.text += fileDatas[i].filePath + "\n";
+                            }
+                        }
+
+                        this.oStream.writeObject(responseMessage);
+                        this.oStream.flush();
+
+                        PayloadComment pComment = (PayloadComment)((Message)this.iStream.readObject()).payload;
+
+                        // write to others profile of destinationClient only if the comment is in the same language as the post text
+                        
+                        // read accompanying text
+
+                        String[] t = pComment.photoName.split("\\.");
+
+                        System.out.println(t[0] + ".txt");
+
+                        String photoText = (String)(destClientDirectory.GetFile(t[0] + ".txt").ReadFile(this));
+
+                        // find languages
+
+                        boolean isEN = photoText.indexOf("[EN]") != -1;
+                        boolean isEL = photoText.indexOf("[EL]") != -1;
+                        
+                        // if the comment has a language that is not in the file reject do not write anything
+
+                        if((pComment.comment.hasText(Language.ENGLISH) && !isEN)
+                        || (pComment.comment.hasText(Language.GREEK) && !isEL)) {
+                            // disaproved do not write anything
+                            break;
+                        }
+                        
+                        String comment = Integer.toString(pRequest.clientIDSource) + " commented " + "[" + pComment.comment.getOneLineText(Language.BOTH) + "] " + pComment.photoName + " " + Integer.toString(pRequest.clientIDDestination);
+                        ArrayList<String> lines = new ArrayList<String>();
+                        lines.add(comment);
+
+                        System.out.println(comment);
+
+                        destClientDirectory.GetFile(destClientDirectory.GetLocalNotificationsName()).AppendFile(lines, this);
+                    }
+                    break;
+                    case APPROVE_COMMENT:
+                    {
+                        PayloadClientRequest pRequest = (PayloadClientRequest)connectionMessage.payload;
+
+                        PayloadApproveComment pComment = (PayloadApproveComment)((Message)this.iStream.readObject()).payload;
+
+                        ArrayList<String> comment = new ArrayList<String>();
+                        comment.add(pComment.comment);
+
+                        Set<String> comment2 = new HashSet<String>();
+                        comment2.add(comment.get(0));
+
+                        // delete from source
+                        Directory srcDirectory = this.server.GetDirectory(pRequest.clientIDSource);
+                        srcDirectory.GetFile(srcDirectory.GetLocalNotificationsName()).RemoveFile(comment2, this);
+
+                        if(pComment.isApproved) {
+                            // add to destination others profile(the user that commented)
+                            Directory destDirectory = this.server.GetDirectory(pRequest.clientIDDestination);
+                            destDirectory.GetFile(destDirectory.GetLocalProfileName()).AppendFile(comment, this);
+                        }
+                    }
+                    break;
+                    case PERMIT_PHOTO_ACCESS:
+                    {
+                        // [userID] approval request [photoName]
+                        PayloadComment pText = (PayloadComment)connectionMessage.payload;
+
+                        String text = pText.photoName;
+
+                        Set<String> lines = new HashSet<String>();
+                        lines.add(text);
+
+                        Directory userDirectory = this.server.GetDirectory(this.clientID);
+                        userDirectory.GetFile(userDirectory.GetLocalNotificationsName()).RemoveFile(lines, this);
+
+                        String[] tokens = text.split(" ");
+                        int approvedClientID = Integer.parseInt(tokens[0]);
+
+                        String approval = "disapproved";
+
+                        if(pText.isApproved) {
+                            approval = "approved";
+                        }
+
+                        String message = "Client: " + Integer.toString(this.clientID) + " " + approval + " access permission for image " + tokens[3];
+                        this.server.Log(approvedClientID, message);
                     }
                     break;
                     default:
@@ -633,6 +894,10 @@ public class ServerActions implements Runnable {
 
     private void updateSocialGraphFile() {
         this.server.updateSocialGraphFile();
+    }
+
+    int _ceil(float x) {
+        return (int) Math.ceil(x);
     }
 
 /*

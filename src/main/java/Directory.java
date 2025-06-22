@@ -137,16 +137,16 @@ public class Directory {
         return (String) result;
     }
 
-    public String GetNotifications() {
+    public String GetNotifications(ServerActions actions) {
         _File file = localFilePathToFile.get("Others_31client" + Integer.toString(this.clientID) + ".txt");
 
-        return (String)file.ReadFile();
+        return (String)file.ReadFile(actions);
     }
 
-    public String GetProfile() {
+    public String GetProfile(ServerActions actions) {
         _File file = localFilePathToFile.get("Profile_31client" + Integer.toString(this.clientID) + ".txt");
 
-        return (String)file.ReadFile();
+        return (String)file.ReadFile(actions);
     }
 
     public String GetLocalProfileName() {

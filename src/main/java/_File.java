@@ -68,27 +68,8 @@ public class _File {
     }
 
     private void releaseWriteLock() {
-        if (rwLock.isWriteLockedByCurrentThread()) {
+        if (rwLock.getWriteHoldCount() > 0) {
             writeLock.unlock();
-        }
-    }
-
-    // Non-blocking lock methods
-    public boolean tryAcquireReadLock() {
-        try {
-            return readLock.tryLock(100, TimeUnit.MILLISECONDS);  // Very short timeout
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        }
-    }
-
-    public boolean tryAcquireWriteLock() {
-        try {
-            return writeLock.tryLock(100, TimeUnit.MILLISECONDS);  // Very short timeout
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
         }
     }
 
@@ -104,12 +85,16 @@ public class _File {
 
     // Safe read method that can fail gracefully
     public synchronized Object tryReadFile() {
-        if (!tryAcquireReadLock()) {
+        if (!acquireReadLock()) {
+            System.out.println("The File is Locked!");
+            
             return null;  // Indicates file is locked
         }
 
+        Object result = null;
+        BufferedReader br = null;
+
         try {
-            Object result = null;
             String fileExtension = this.GetFileExtension();
 
             if (fileExtension.equals("")) {
@@ -119,7 +104,10 @@ public class _File {
             if (".txt".equals(fileExtension)) {
                 StringBuilder resultBuilder = new StringBuilder();
 
-                try (BufferedReader br = new BufferedReader(new FileReader(new File(this.globalFilePath)))) {
+                try {
+                    
+                    br = new BufferedReader(new FileReader(new File(this.globalFilePath)));
+
                     String line;
                     boolean firstLine = true;
 
@@ -156,10 +144,18 @@ public class _File {
                 }
             }
 
-            return result;
         } finally {
+            try {
+                if(br != null) {
+                    br.close();
+                }
+            } catch(IOException e) {
+                throw new RuntimeException();
+            }
             releaseReadLock();
         }
+
+        return result;
     }
 
     public String GetLocalFilePath() {
@@ -170,8 +166,10 @@ public class _File {
         return this.globalFilePath;
     }
 
-    public synchronized BigInteger GetChecksum() {
+    public BigInteger GetChecksum() {
         if (!acquireWriteLock()) {
+            System.out.println("The File is Locked!");
+
             throw new RuntimeException("Failed to acquire write lock for checksum calculation");
         }
 
@@ -200,8 +198,21 @@ public class _File {
         }
     }
 
-    private synchronized byte[] getBytes() throws IOException {
-        return Files.readAllBytes(Paths.get(this.globalFilePath));
+    private byte[] getBytes() throws IOException {
+
+        if(!acquireReadLock()) {
+            System.out.println("File is locked!");
+        }
+
+        byte[] data = null;
+
+        try {
+            data = Files.readAllBytes(Paths.get(this.globalFilePath));
+        } finally {
+            releaseReadLock();
+        }
+
+        return data;
     }
 
     public String GetFileExtension() {
@@ -215,13 +226,21 @@ public class _File {
     }
 
     // Returns either a String with \n characters for txt files and for images a byte[] containing the Image 
-    public synchronized Object ReadFile() {
+    public Object ReadFile(ServerActions serverActions) {
         if (!acquireReadLock()) {
+            if(serverActions == null) {
+                System.out.println("The File is Locked!");
+            } else {
+                serverActions.server.Log(serverActions.clientID, "The File is Locked!");
+            }
+
             throw new RuntimeException("Failed to acquire read lock");
         }
+        
+        Object result = null;
+        BufferedReader br = null;
 
         try {
-            Object result = null;
             String fileExtension = this.GetFileExtension();
 
             if (fileExtension.equals("")) {
@@ -232,7 +251,8 @@ public class _File {
                 // It is a text file
                 StringBuilder resultBuilder = new StringBuilder();
                 
-                try (BufferedReader br = new BufferedReader(new FileReader(new File(this.globalFilePath)))) {
+                try {
+                    br = new BufferedReader(new FileReader(new File(this.globalFilePath)));
                     String line;
                     boolean firstLine = true;
 
@@ -270,16 +290,32 @@ public class _File {
                 }
             }
 
-            return result;
         } finally {
+            try {
+                if(br != null) {
+                    br.close();
+                }
+            } catch (IOException e) {
+                throw new RuntimeException();
+            }
             releaseReadLock();
         }
+
+        return result;
     }
 
-    public synchronized void WriteFile(Object content) {
+    public void WriteFile(Object content, ServerActions serverActions) {
         if (!acquireWriteLock()) {
+            if(serverActions == null) {
+                System.out.println("The File is Locked!");
+            } else {
+                serverActions.server.Log(serverActions.clientID, "The File is Locked!");
+            }
+
             throw new RuntimeException("Failed to acquire write lock");
         }
+
+        FileWriter fwriter = null;
 
         try {
             String fileExtension = this.GetFileExtension();
@@ -291,8 +327,10 @@ public class _File {
             if (".txt".equals(fileExtension)) {
                 String lines = (String)content;
                 
-                try (FileWriter fwriter = new FileWriter(new File(this.globalFilePath))) {
+                try {
+                    fwriter = new FileWriter(new File(this.globalFilePath));
                     fwriter.write(lines);
+                    fwriter.flush();
                 } catch(IOException e) {
                     throw new RuntimeException("Failed to write text file: " + e.getMessage(), e);
                 }
@@ -318,17 +356,33 @@ public class _File {
 
             this.isDirty = true;  // Mark as dirty after writing
         } finally {
+            try {
+                if(fwriter != null) {
+                    fwriter.close();
+                }
+            } catch (IOException e) {
+                throw new RuntimeException();
+            }
             releaseWriteLock();
         }
     }
 
-    public synchronized void AppendFile(ArrayList<String> lines) {
+    public void AppendFile(ArrayList<String> lines, ServerActions serverActions) {
         if (!acquireWriteLock()) {
+            if(serverActions == null) {
+                System.out.println("The File is Locked!");
+            } else {
+                serverActions.server.Log(serverActions.clientID, "The File is Locked!");
+            }
+
             throw new RuntimeException("Failed to acquire write lock");
         }
 
+        FileWriter fWriter = null;
+
         try {
-            try (FileWriter fWriter = new FileWriter(this.globalFilePath, true)) {
+            try {
+                fWriter = new FileWriter(this.globalFilePath, true);
                 boolean isFirstWrite = new File(this.globalFilePath).length() == 0;
                 
                 for (int i = 0; i < lines.size(); ++i) {
@@ -344,21 +398,38 @@ public class _File {
                 throw new RuntimeException("Failed to append to file: " + e.getMessage(), e);
             }
         } finally {
+            try {
+                if(fWriter != null) {
+                    fWriter.close();
+                }
+            } catch(IOException e) {
+                throw new RuntimeException();
+            }
             releaseWriteLock();
         }
     }
 
     // Only for .txt files
-    public synchronized void RemoveFile(Set<String> lines) {
+    public void RemoveFile(Set<String> lines, ServerActions serverActions) {
         if (!acquireWriteLock()) {
+            if(serverActions == null) {
+                System.out.println("The File is Locked!");
+            } else {
+                serverActions.server.Log(serverActions.clientID, "The File is Locked!");
+            }
+
+
             throw new RuntimeException("Failed to acquire write lock");
         }
+
+        FileWriter fWriter = null;
 
         try {
             String fileContent = (String) ReadFileInternal();  // Internal method to avoid double locking
             String[] fileLines = fileContent.split("\n");
             
-            try (FileWriter fWriter = new FileWriter(this.globalFilePath)) {
+            try {
+                fWriter = new FileWriter(this.globalFilePath);
                 boolean firstLineWritten = false;
 
                 for (String line : fileLines) {
@@ -375,6 +446,13 @@ public class _File {
                 throw new RuntimeException("Failed to remove lines from file: " + e.getMessage(), e);
             }
         } finally {
+            try {
+                if(fWriter != null) {
+                    fWriter.close();
+                }
+            } catch(IOException e) {
+                throw new RuntimeException();
+            }
             releaseWriteLock();
         }
     }
@@ -387,10 +465,14 @@ public class _File {
             throw new RuntimeException("File has no extension");
         }
 
+        Object res;
+        BufferedReader br = null;
+
         if (".txt".equals(fileExtension)) {
             StringBuilder resultBuilder = new StringBuilder();
             
-            try (BufferedReader br = new BufferedReader(new FileReader(new File(this.globalFilePath)))) {
+            try {
+                br = new BufferedReader(new FileReader(new File(this.globalFilePath)));
                 String line;
                 boolean firstLine = true;
 
@@ -402,13 +484,23 @@ public class _File {
                     firstLine = false;
                 }
 
-                return resultBuilder.toString();
+                res = resultBuilder.toString();
             } catch(IOException e) {
                 throw new RuntimeException("Failed to read text file: " + e.getMessage(), e);
+            } finally {
+                try {
+                    if(br != null) {
+                        br.close();
+                    }
+                } catch(IOException e) {
+                    throw new RuntimeException();
+                }
             }
         } else {
             // Handle image files if needed
             throw new RuntimeException("ReadFileInternal not implemented for image files");
         }
+
+        return res;
     }
 }

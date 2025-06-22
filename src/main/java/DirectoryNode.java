@@ -26,14 +26,14 @@ public class DirectoryNode {
 
             for (int i = 0; i < filePaths.length; ++i) {
                 boolean isChildDirectory = filePaths[i].isDirectory();
-                children.add(new DirectoryNode(pathName + File.separator + filePaths[i].getName(), depth + 1, isChildDirectory));
+                children.add(new DirectoryNode(pathName + "/" + filePaths[i].getName(), depth + 1, isChildDirectory));
             }
         }
     }
 
     public void GetFilePaths(HashSet<String> filePaths, String rootPath) {
         if (!this.isDirectory) {
-            String escapedSeparator = File.separator.equals("\\") ? "\\\\" : File.separator;
+            String escapedSeparator = "/"; //File.separator.equals("\\") ? "\\\\" : File.separator;
             filePaths.add(this.pathName.replaceAll(rootPath + escapedSeparator, ""));
             return;
         }
@@ -48,8 +48,8 @@ public class DirectoryNode {
     }
 
     public void Print() {
-        String directory = isDirectory ? File.separator : "";
-        int idx = this.pathName.lastIndexOf(File.separator);
+        String directory = isDirectory ? "/" : "";
+        int idx = this.pathName.lastIndexOf("/");
         String name;
 
         if (idx < 0 || idx >= this.pathName.length() - 1) {

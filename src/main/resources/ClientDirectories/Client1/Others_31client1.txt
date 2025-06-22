@@ -1,1 +1,3 @@
 Notification from follower1
+8 follow request
+0 posted TestImage.png

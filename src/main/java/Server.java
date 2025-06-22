@@ -3,11 +3,19 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentHashMap.KeySetView;
 
 import POD.Credentials;
 import POD.HostData;
@@ -15,12 +23,16 @@ import POD.HostData;
 
 public class Server implements Runnable {
 
-    private static final String serverDirectoryPath = String.join(File.separator, "src", "main", "resources", "ServerDirectory", "");
+    private static final String serverDirectoryPath = String.join("/", "src", "main", "resources", "ServerDirectory", "");
     private ConcurrentHashMap<Integer, Directory> IDtoDirectory;  // Cache of user directories
 
-    private HostData hostData;
+    public HostData hostData;
 
     private ServerSocket serverSocket;
+
+    private ConcurrentHashMap<String, Integer> photoPathToDownloadCounter;
+
+    private ConcurrentHashMap<Integer, ObjectOutputStream> clientIDToOStreamLogger;
 
     private ConcurrentHashMap<String, String> userNameToPassword;
     private ConcurrentHashMap<String, Integer> userNameToID;
@@ -29,6 +41,29 @@ public class Server implements Runnable {
     private int userCount;
     private SocialGraph socialGraph;
 
+    public synchronized void Log(int clientID, String message) {
+        ObjectOutputStream oS = clientIDToOStreamLogger.get(clientID);
+
+        if(oS != null) {
+            try {
+                oS.writeObject(message);
+                oS.flush();
+            } catch (IOException e) {
+                throw new RuntimeException();
+            }
+        } else {
+            System.out.println("Logger not found for clientID: " + Integer.toString(clientID));
+        }
+    }
+
+    public synchronized void UnRegisterOStream(int clientID) {
+        this.clientIDToOStreamLogger.remove(clientID);
+    }
+
+    public synchronized void RegisterOStream(int clientID, ObjectOutputStream oS) {
+        this.clientIDToOStreamLogger.put(clientID, oS);
+    }
+
     // avoid stale reads with synchronized
     public synchronized Directory GetDirectory(int userID) throws IOException {
         Directory result = this.IDtoDirectory.get(userID);
@@ -36,7 +71,7 @@ public class Server implements Runnable {
         if (result == null) {
             if (this.socialGraph.GetUserNode(userID) == null) return null;
 
-            String clientDirectoryPath = Server.serverDirectoryPath + "ClientProfiles" + File.separator + "Client" + Integer.toString(userID) + File.separator;
+            String clientDirectoryPath = Server.serverDirectoryPath + "ClientProfiles" + "/" + "Client" + Integer.toString(userID) + "/";
             try {
                 result = new Directory(clientDirectoryPath, userID);
                 this.IDtoDirectory.put(userID, result);
@@ -97,7 +132,7 @@ public class Server implements Runnable {
             this.IDToUserName.put(newUserID, userName);
 
             // Create directory path for new user
-            String newUserDirectoryPath = Server.serverDirectoryPath + "ClientProfiles" + File.separator + "Client" + newUserID + File.separator;
+            String newUserDirectoryPath = Server.serverDirectoryPath + "ClientProfiles" + "/" + "Client" + newUserID + "/";
 
             // Create the directory structure
             java.io.File dirFile = new java.io.File(newUserDirectoryPath);
@@ -147,7 +182,7 @@ public class Server implements Runnable {
         try {
             String profileFileName = userDirectory.GetLocalProfileName();
             userDirectory.SetFile(profileFileName);
-            userDirectory.GetFile(profileFileName).WriteFile("");
+            userDirectory.GetFile(profileFileName).WriteFile("", null);
         } catch (Exception e) {
             System.err.println("Failed to create profile file for user " + userName + ": " + e.getMessage());
         }
@@ -158,7 +193,7 @@ public class Server implements Runnable {
         try {
             String notificationsFileName = userDirectory.GetLocalNotificationsName();
             userDirectory.SetFile(notificationsFileName);
-            userDirectory.GetFile(notificationsFileName).WriteFile("");
+            userDirectory.GetFile(notificationsFileName).WriteFile("", null);
         } catch (Exception e) {
             System.err.println("Failed to create notifications file: " + e.getMessage());
         }
@@ -212,13 +247,72 @@ public class Server implements Runnable {
         }
     }
 
+    public synchronized void AddDownload(String photoPath) {
+        if(this.photoPathToDownloadCounter.get(photoPath) != null) {
+            this.photoPathToDownloadCounter.put(photoPath, this.photoPathToDownloadCounter.get(photoPath) + 1);
+        } else {
+            this.photoPathToDownloadCounter.put(photoPath, 1);
+        }
+    }
+
+    public synchronized void PrintStatistics() {
+
+        if(this.photoPathToDownloadCounter.size() == 0) {
+            System.out.println("No Statistics!");
+            return;
+        }
+
+        Integer[] a = new Integer[this.photoPathToDownloadCounter.size()];
+        String[] aa = new String[this.photoPathToDownloadCounter.size()];
+
+        int i = 0;
+        for(Map.Entry<String, Integer> c : this.photoPathToDownloadCounter.entrySet()) {
+            a[i] = c.getValue();
+            aa[i] = c.getKey();
+            i++;
+        }
+        
+        // insertion sort
+        for(int j = 0; j < a.length; ++j) {
+            String b = aa[j];
+            int idx = j;
+
+            for(int k = j + 1; k < a.length; ++k) {
+                String c = aa[k];
+                
+                if(c.compareTo(b) > 0) {
+                    idx = k;
+                    b = c;
+                }
+            }
+
+            // swap
+            String t1 = aa[j];
+            aa[j] = aa[idx];
+            aa[idx] = t1;
+
+            Integer t2 = a[j];
+            a[j] = a[idx];
+            a[idx] = t2;
+        }
+
+        for(int j = 0; j < a.length; ++j) {
+            System.out.printf("%d) PhotoPath: %s, Counter: %d\n", j, aa[j], a[j]);
+        }
+    }
+
     public static void main(String[] args) {
         if (args.length != 2) return;
 
-        new Thread(new Server(args[0], Integer.parseInt(args[1]))).start();
+        Server serv = new Server(args[0], Integer.parseInt(args[1]));
+
+        new Thread(serv).start();
+
+        new Thread(new Logger(serv)).start();
     }
 
     public Server(String hostIP, int port) {
+
         this.hostData = new HostData(hostIP, port);
     }
 
@@ -235,6 +329,10 @@ public class Server implements Runnable {
             this.IDToUserName = new ConcurrentHashMap<Integer, String>();
             this.IDtoDirectory = new ConcurrentHashMap<Integer, Directory>();
 
+            this.clientIDToOStreamLogger = new ConcurrentHashMap<Integer, ObjectOutputStream>();
+
+            this.photoPathToDownloadCounter = new ConcurrentHashMap<String, Integer>();
+
             while((line = reader.readLine()) != null) {
                 String credentials[] = line.trim().split(" ");
 
@@ -243,7 +341,7 @@ public class Server implements Runnable {
                 this.userNameToID.put(credentials[1], Integer.parseInt(credentials[0]));
                 this.IDToUserName.put(Integer.parseInt(credentials[0]), credentials[1]);
                 this.userNameToPassword.put(credentials[1], credentials[2]);
-                this.IDtoDirectory.put((Integer.parseInt(credentials[0])), new Directory(Server.serverDirectoryPath + "ClientProfiles" + File.separator + "Client" + credentials[0] + File.separator, Integer.parseInt(credentials[0])));
+                this.IDtoDirectory.put((Integer.parseInt(credentials[0])), new Directory(Server.serverDirectoryPath + "ClientProfiles" + "/" + "Client" + credentials[0] + "/", Integer.parseInt(credentials[0])));
 
                 userCount++;
             }
@@ -309,6 +407,8 @@ public class Server implements Runnable {
         // }
     }
 
+    public static boolean isOpen;
+
     @Override
     public void run() {
         // Loads data into cache (memory)
@@ -322,15 +422,30 @@ public class Server implements Runnable {
             throw new RuntimeException();
         }
 
-        boolean isOpen = true;
+        Server.isOpen = true;
+
+        new Thread(() -> {
+            Scanner sc = new Scanner(System.in);
+            while(true) {
+                String o = sc.nextLine();
+                if(o.equals("a")) {
+                    System.out.println("\nShutting down server...");
+                    PrintStatistics();
+                    Server.isOpen = false;
+                    System.exit(0);
+                }
+            }
+            
+        }).start();
+
         Socket connectionSocket;
-        while (isOpen) {
+        while (Server.isOpen) {
             try {
                 connectionSocket = this.serverSocket.accept();
             } catch (IOException e) {
                 throw new RuntimeException();
             }
-
+            
             new Thread(new ServerActions(connectionSocket, this)).start();
         }
     }
